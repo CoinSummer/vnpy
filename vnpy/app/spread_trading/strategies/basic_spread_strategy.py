@@ -84,7 +84,7 @@ class BasicSpreadStrategy(SpreadStrategyTemplate):
         Callback when spread price is updated.
         """
         self.spread_pos = self.get_spread_pos()
-
+        #print(self.spread_pos)
         # No position
         if not self.spread_pos:
             # Start open algos

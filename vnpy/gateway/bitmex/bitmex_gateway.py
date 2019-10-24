@@ -264,6 +264,7 @@ class BitmexRestApi(RestClient):
             "clOrdID": orderid,
         }
 
+        # inst = ["ParticipateDoNotInitiate"]   # Order special instructions
         inst = []   # Order special instructions
 
         # Only add price for limit order.
