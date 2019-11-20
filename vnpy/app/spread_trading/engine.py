@@ -31,7 +31,7 @@ from .base import (
     load_bar_data, load_tick_data
 )
 from .template import SpreadAlgoTemplate, SpreadStrategyTemplate
-from .algo import SpreadTakerAlgo, SpreadMakerAlgo
+from .algo import SpreadTakerAlgo
 
 
 APP_NAME = "SpreadTrading"
@@ -325,9 +325,7 @@ class SpreadDataEngine:
 
 class SpreadAlgoEngine:
     """"""
-    algo_class_taker = SpreadTakerAlgo
-    algo_class_maker = SpreadMakerAlgo
-    algo_class = algo_class_maker
+    algo_class = SpreadTakerAlgo
 
     def __init__(self, spread_engine: SpreadEngine):
         """"""
