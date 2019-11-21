@@ -201,7 +201,9 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
             price_change = self.active_quote_price - new_quote_price
             if abs(price_change) > (self.active_price_tick * self.payup):
                 self.cancel_all_order()
-                return
+
+            # Do not repeat sending quote orders
+            return
 
         # Otherwise send active leg quote order
         self.quote_active_leg(new_quote_price)
