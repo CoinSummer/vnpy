@@ -3,20 +3,27 @@ from vnpy.app.spread_trading import (
     SpreadAlgoTemplate,
     SpreadData,
     OrderData,
-    TradeData
+    TradeData,
+    TickData,
+    BarData
+
 )
+from vnpy.trader.utility import BarGenerator, ArrayManager
 
 
-class BasicSpreadStrategy(SpreadStrategyTemplate):
-    """"""
 
-    author = "用Python的交易员"
+class BmMultiBasicSpreadStrategy(SpreadStrategyTemplate):
+    """
+     多空循环开仓
+    """
 
-    buy_price = 0.0
-    sell_price = 0.0
-    cover_price = 0.0
-    short_price = 0.0
-    max_pos = 0.0
+    author = "wwdd"
+
+    buy_price = 150
+    sell_price = 50
+    cover_price = 50
+    short_price = 150
+    max_pos = 1.0
     payup = 10
     interval = 5
 
@@ -54,6 +61,7 @@ class BasicSpreadStrategy(SpreadStrategyTemplate):
         super().__init__(
             strategy_engine, strategy_name, spread, setting
         )
+        self.bg = BarGenerator(self.on_spread_bar)
 
     def on_init(self):
         """
@@ -80,6 +88,13 @@ class BasicSpreadStrategy(SpreadStrategyTemplate):
         self.put_event()
 
     def on_spread_data(self):
+        """
+        Callback when spread price is updated.
+        """
+        tick = self.get_spread_tick()
+        self.on_spread_tick(tick)
+
+    def on_spread_bar(self, bar: BarData):
         """
         Callback when spread price is updated.
         """

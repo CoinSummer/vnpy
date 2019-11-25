@@ -4,6 +4,8 @@ from typing import Callable, Type
 
 import numpy as np
 import matplotlib.pyplot as plt
+# import matplotlib.mp as mpf
+
 import seaborn as sns
 from pandas import DataFrame
 
@@ -146,6 +148,8 @@ class BacktestingEngine:
             )
 
         self.output(f"历史数据加载完成，数据量：{len(self.history_data)}")
+        # for x in self.history_data:
+        #     print(x)
 
     def run_backtesting(self):
         """"""
@@ -214,14 +218,14 @@ class BacktestingEngine:
 
         # Generate dataframe
         results = defaultdict(list)
-
         for daily_result in self.daily_results.values():
             for key, value in daily_result.__dict__.items():
                 results[key].append(value)
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
-
+        # print(self.daily_df)
         self.output("逐日盯市盈亏计算完成")
+
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True):
@@ -379,6 +383,35 @@ class BacktestingEngine:
         }
 
         return statistics
+    def show_candel_chart(self, df=None):
+
+        if df is None:
+            df = self.history_data
+        if df is None:
+            return
+        dates = []
+        datas = []
+        for x in df:
+            dates.append(x.datetime)
+            data.append([x.datetime, x.close_price])
+
+        xs = [datetime.strptime(d, '%m/%d/%Y').date() for d in dates]
+        plt.figure(figsize=(10, 16))
+
+
+        k_plot = plt.subplot(4, 1, 1)
+
+        k_plot.subplots_adjust(bottom=0.2)
+
+        k_plot = plt.subplot(4, 1, 1)
+        k_plot.set_title("spread Line")
+        data.plot(legend=True)
+
+        # mpf.candlestick_ohlc(ax, quotes, width=1.2, colorup='r', colordown='green')
+
+        # plt.grid(True)
+        plt.show()
+
 
     def show_chart(self, df: DataFrame = None):
         """"""
@@ -395,6 +428,7 @@ class BacktestingEngine:
         balance_plot = plt.subplot(4, 1, 1)
         balance_plot.set_title("Balance")
         df["balance"].plot(legend=True)
+        # print(df["balance"])
 
         drawdown_plot = plt.subplot(4, 1, 2)
         drawdown_plot.set_title("Drawdown")
