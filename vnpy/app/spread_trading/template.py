@@ -538,6 +538,20 @@ class SpreadStrategyTemplate:
             payup, interval, lock, offset
         )
 
+    def start_cover_algo(
+            self,
+            price: float,
+            volume: float,
+            payup: int,
+            interval: int,
+            lock: bool = False,
+            offset: Offset = Offset.CLOSE
+    ) -> str:
+        """"""
+        return self.start_algo(
+            Direction.SHORT, price, volume,
+            payup, interval, lock, offset
+        )
     def stop_algo(self, algoid: str):
         """"""
         if not self.trading:
@@ -588,7 +602,12 @@ class SpreadStrategyTemplate:
             offset,
             lock
         )
-
+        print({ vt_symbol,
+            price,
+            volume,
+            direction,
+            offset,
+            lock})
         for vt_orderid in vt_orderids:
             self.vt_orderids.add(vt_orderid)
 

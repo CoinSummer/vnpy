@@ -3,20 +3,28 @@ from vnpy.app.spread_trading import (
     SpreadAlgoTemplate,
     SpreadData,
     OrderData,
-    TradeData
+    TradeData,
+    TickData,
+    BarData
+
 )
+from vnpy.trader.utility import BarGenerator, ArrayManager
 
 
-class BasicSpreadStrategy(SpreadStrategyTemplate):
-    """"""
 
-    author = "用Python的交易员"
+class BmBasicSpreadStrategy(SpreadStrategyTemplate):
+    """
+    只远期开空，近期开多
+    符合平仓条件后，平空 平多
+    """
 
-    buy_price = 0.0
-    sell_price = 0.0
-    cover_price = 0.0
-    short_price = 0.0
-    max_pos = 0.0
+    author = "wwdd"
+
+    buy_price = 150
+    sell_price = 50
+    cover_price = 50
+    short_price = 150
+    max_pos = 1.0
     payup = 10
     interval = 5
 
@@ -54,6 +62,7 @@ class BasicSpreadStrategy(SpreadStrategyTemplate):
         super().__init__(
             strategy_engine, strategy_name, spread, setting
         )
+        self.bg = BarGenerator(self.on_spread_bar)
 
     def on_init(self):
         """
@@ -83,32 +92,39 @@ class BasicSpreadStrategy(SpreadStrategyTemplate):
         """
         Callback when spread price is updated.
         """
+        tick = self.get_spread_tick()
+        self.on_spread_tick(tick)
+
+    def on_spread_bar(self, bar: BarData):
+        """
+        Callback when spread price is updated.
+        """
         self.spread_pos = self.get_spread_pos()
 
         # No position
         if not self.spread_pos:
             self.stop_close_algos()
 
-            # Start open algos
-            if not self.buy_algoid:
-                self.buy_algoid = self.start_long_algo(
-                    self.buy_price, self.max_pos, self.payup, self.interval
-                )
+            # # Start open algos
+            # if not self.buy_algoid:
+            #     self.buy_algoid = self.start_long_algo(
+            #         self.buy_price, self.max_pos, self.payup, self.interval
+            #     )
 
             if not self.short_algoid:
                 self.short_algoid = self.start_short_algo(
                     self.short_price, self.max_pos, self.payup, self.interval
                 )
 
-        # Long position
-        elif self.spread_pos > 0:
-            self.stop_open_algos()
-
-            # Start sell close algo
-            if not self.sell_algoid:
-                self.sell_algoid = self.start_short_algo(
-                    self.sell_price, self.spread_pos, self.payup, self.interval
-                )
+        # # Long position
+        # elif self.spread_pos > 0:
+        #     self.stop_open_algos()
+        #
+        #     # Start sell close algo
+        #     if not self.sell_algoid:
+        #         self.sell_algoid = self.start_short_algo(
+        #             self.sell_price, self.spread_pos, self.payup, self.interval
+        #         )
 
         # Short position
         elif self.spread_pos < 0:

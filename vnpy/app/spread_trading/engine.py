@@ -327,7 +327,9 @@ class SpreadAlgoEngine:
     """"""
     algo_class_taker = SpreadTakerAlgo
     algo_class_maker = SpreadMakerAlgo
-    algo_class = algo_class_maker
+    # algo_class = algo_class_maker
+    algo_class = algo_class_taker
+
 
     def __init__(self, spread_engine: SpreadEngine):
         """"""
