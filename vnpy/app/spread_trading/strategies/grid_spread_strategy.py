@@ -98,7 +98,7 @@ class GridSpreadStrategy(SpreadStrategyTemplate):
         )
 
         # 计算当前目标仓位
-        self.target_pos = self.current_grid * self.grid_size
+        self.target_pos = - self.current_grid * self.grid_size
 
         # 判断是否要启动算法
         if (
@@ -107,7 +107,7 @@ class GridSpreadStrategy(SpreadStrategyTemplate):
             not self.long_algoid                    # 当前没有活动算法
         ):
             self.long_algoid = self.start_long_algo(
-                long_price, self.grid_size)
+                long_price, self.grid_size, self.payup, self.interval)
 
         if (
             self.spread_pos >= -self.max_pos and
@@ -115,7 +115,7 @@ class GridSpreadStrategy(SpreadStrategyTemplate):
             not self.short_algoid
         ):
             self.short_algoid = self.start_short_algo(
-                short_price, self.grid_size)
+                short_price, self.grid_size, self.payup, self.interval)
 
         # 更新图形界面
         self.put_event()
