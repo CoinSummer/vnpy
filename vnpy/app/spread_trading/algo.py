@@ -316,7 +316,7 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         # Localize object
         spread = self.spread
         active_leg = spread.active_leg
-
+        
         # Calculate active leg quote price
         price_multiplier = spread.price_multipliers[
             spread.active_leg.vt_symbol
@@ -336,5 +336,9 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
             else:
                 quote_price = (self.price - spread.bid_price) / \
                     price_multiplier + active_leg.bid_price
+
+        # Round price to pricetick of active leg
+        contract = self.get_contract(active_leg.vt_symbol)    
+        quote_price = round_to(quote_price, contract.pricetick)
 
         return quote_price
