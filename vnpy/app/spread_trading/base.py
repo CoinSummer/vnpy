@@ -17,6 +17,9 @@ EVENT_SPREAD_LOG = "eSpreadLog"
 EVENT_SPREAD_ALGO = "eSpreadAlgo"
 EVENT_SPREAD_STRATEGY = "eSpreadStrategy"
 
+class EngineType(Enum):
+    LIVE = "实盘"
+    BACKTESTING = "回测"
 
 class LegData:
     """"""

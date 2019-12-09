@@ -271,7 +271,6 @@ class BacktestingEngine:
         # Use the first [days] of history data for initializing strategy
         day_count = 0
         ix = 0
-
         for ix, data in enumerate(self.history_data):
             if self.datetime and data.datetime.day != self.datetime.day:
                 day_count += 1
@@ -618,6 +617,7 @@ class BacktestingEngine:
         global ga_mode
         global ga_inverse
 
+        print(self.vt_symbol)
         ga_target_name = target_name
         ga_strategy_class = self.strategy_class
         ga_setting = settings[0]

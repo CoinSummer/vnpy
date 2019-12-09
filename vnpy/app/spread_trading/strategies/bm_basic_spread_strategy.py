@@ -20,11 +20,11 @@ class BmBasicSpreadStrategy(SpreadStrategyTemplate):
 
     author = "wwdd"
 
-    buy_price = 150
-    sell_price = 50
+    buy_price = 50
+    sell_price = 150
     cover_price = 50
     short_price = 150
-    max_pos = 1.0
+    max_pos = 100.0
     payup = 10
     interval = 5
 
