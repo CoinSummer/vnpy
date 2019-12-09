@@ -2,8 +2,10 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Callable, Type
 
-import numpy as np
-import matplotlib.pyplot as plt
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.mp as mpf
+
 import seaborn as sns
 from pandas import DataFrame
 
@@ -12,23 +14,21 @@ from vnpy.trader.constant import (Direction, Offset, Exchange,
 from vnpy.trader.object import TradeData, BarData, TickData
 
 from .template import SpreadStrategyTemplate, SpreadAlgoTemplate
-from .base import SpreadData, BacktestingMode, load_bar_data, load_tick_data, EngineType
+from .base import SpreadData, BacktestingMode, load_bar_data, load_tick_data
 
-
-# 添加引用
-from deap import creator, base, tools, algorithms
-from vnpy.trader.utility import round_to
 from itertools import product
 from functools import lru_cache
-from time import time
-import multiprocessing
-import random
+from typing import Callable
+
+import numpy as np
+import matplotlib.pyplot as plt
+from deap import creator, base, tools, algorithms
+
+
 from vnpy.trader.database import database_manager
 
 
 sns.set_style("whitegrid")
-
-# creatior base
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
@@ -94,20 +94,11 @@ class OptimizationSetting:
         return settings_ga
 
 
-
 class BacktestingEngine:
     """"""
 
     gateway_name = "BACKTESTING"
-    # 添加回撤模块
-    # engine_type = EngineType.BACKTESTING
 
-    DISPLAY_NAME_MAP = {
-        "总收益率": "total_return",
-        "夏普比率": "sharpe_ratio",
-        "收益回撤比": "return_drawdown_ratio",
-        "日均盈亏": "daily_net_pnl"
-    }
     def __init__(self):
         """"""
         self.spread: SpreadData = None
@@ -143,9 +134,6 @@ class BacktestingEngine:
 
         self.daily_results = {}
         self.daily_df = None
-
-        self.inverse = False
-
 
     def output(self, msg):
         """
@@ -236,6 +224,7 @@ class BacktestingEngine:
 
         self.output(f"历史数据加载完成，数据量：{len(self.history_data)}")
 
+
     def run_backtesting(self):
         """"""
         if self.mode == BacktestingMode.BAR:
@@ -303,14 +292,14 @@ class BacktestingEngine:
 
         # Generate dataframe
         results = defaultdict(list)
-
         for daily_result in self.daily_results.values():
             for key, value in daily_result.__dict__.items():
                 results[key].append(value)
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
-
+        # print(self.daily_df)
         self.output("逐日盯市盈亏计算完成")
+
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True):
@@ -468,6 +457,213 @@ class BacktestingEngine:
         }
 
         return statistics
+    def show_candel_chart(self, df=None):
+
+        if df is None:
+            df = self.history_data
+        if df is None:
+            return
+        dates = []
+        datas = []
+        for x in df:
+            dates.append(x.datetime)
+            data.append([x.datetime, x.close_price])
+
+        xs = [datetime.strptime(d, '%m/%d/%Y').date() for d in dates]
+        plt.figure(figsize=(10, 16))
+
+
+        k_plot = plt.subplot(4, 1, 1)
+
+        k_plot.subplots_adjust(bottom=0.2)
+
+        k_plot = plt.subplot(4, 1, 1)
+        k_plot.set_title("spread Line")
+        data.plot(legend=True)
+
+        # mpf.candlestick_ohlc(ax, quotes, width=1.2, colorup='r', colordown='green')
+
+        # plt.grid(True)
+        plt.show()
+
+    def run_optimization(self, optimization_setting: OptimizationSetting, output=True):
+        """"""
+        # Get optimization setting and target
+        settings = optimization_setting.generate_setting()
+        target_name = optimization_setting.target_name
+
+        if not settings:
+            self.output("优化参数组合为空，请检查")
+            return
+
+        if not target_name:
+            self.output("优化目标未设置，请检查")
+            return
+
+        # Use multiprocessing pool for running backtesting with different setting
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+        results = []
+        for setting in settings:
+            result = (pool.apply_async(optimize, (
+                target_name,
+                self.strategy_class,
+                setting,
+                self.vt_symbol,
+                self.interval,
+                self.start,
+                self.rate,
+                self.slippage,
+                self.size,
+                self.pricetick,
+                self.capital,
+                self.end,
+                self.mode,
+                self.inverse
+            )))
+            results.append(result)
+
+        pool.close()
+        pool.join()
+
+        # Sort results and output
+        result_values = [result.get() for result in results]
+        result_values.sort(reverse=True, key=lambda result: result[1])
+
+        if output:
+            for value in result_values:
+                msg = f"参数：{value[0]}, 目标：{value[1]}"
+                self.output(msg)
+
+        return result_values
+
+    def run_ga_optimization(self, optimization_setting: OptimizationSetting, population_size=100, ngen_size=30, output=True):
+        """"""
+        # Get optimization setting and target
+        settings = optimization_setting.generate_setting_ga()
+        target_name = optimization_setting.target_name
+
+        if not settings:
+            self.output("优化参数组合为空，请检查")
+            return
+
+        if not target_name:
+            self.output("优化目标未设置，请检查")
+            return
+
+        # Define parameter generation function
+        def generate_parameter():
+            """"""
+            return random.choice(settings)
+
+        def mutate_individual(individual, indpb):
+            """"""
+            size = len(individual)
+            paramlist = generate_parameter()
+            for i in range(size):
+                if random.random() < indpb:
+                    individual[i] = paramlist[i]
+            return individual,
+
+        # Create ga object function
+        global ga_target_name
+        global ga_strategy_class
+        global ga_setting
+        global ga_vt_symbol
+        global ga_interval
+        global ga_start
+        global ga_rate
+        global ga_slippage
+        global ga_size
+        global ga_pricetick
+        global ga_capital
+        global ga_end
+        global ga_mode
+        global ga_inverse
+
+        ga_target_name = target_name
+        ga_strategy_class = self.strategy_class
+        ga_setting = settings[0]
+        ga_vt_symbol = self.vt_symbol
+        ga_interval = self.interval
+        ga_start = self.start
+        ga_rate = self.rate
+        ga_slippage = self.slippage
+        ga_size = self.size
+        ga_pricetick = self.pricetick
+        ga_capital = self.capital
+        ga_end = self.end
+        ga_mode = self.mode
+        ga_inverse = self.inverse
+
+        # Set up genetic algorithem
+        toolbox = base.Toolbox()
+        toolbox.register("individual", tools.initIterate, creator.Individual, generate_parameter)
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        toolbox.register("mate", tools.cxTwoPoint)
+        toolbox.register("mutate", mutate_individual, indpb=1)
+        toolbox.register("evaluate", ga_optimize)
+        toolbox.register("select", tools.selNSGA2)
+
+        total_size = len(settings)
+        pop_size = population_size                      # number of individuals in each generation
+        lambda_ = pop_size                              # number of children to produce at each generation
+        mu = int(pop_size * 0.8)                        # number of individuals to select for the next generation
+
+        cxpb = 0.95         # probability that an offspring is produced by crossover
+        mutpb = 1 - cxpb    # probability that an offspring is produced by mutation
+        ngen = ngen_size    # number of generation
+
+        pop = toolbox.population(pop_size)
+        hof = tools.ParetoFront()               # end result of pareto front
+
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        np.set_printoptions(suppress=True)
+        stats.register("mean", np.mean, axis=0)
+        stats.register("std", np.std, axis=0)
+        stats.register("min", np.min, axis=0)
+        stats.register("max", np.max, axis=0)
+
+        # Multiprocessing is not supported yet.
+        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        # toolbox.register("map", pool.map)
+
+        # Run ga optimization
+        self.output(f"参数优化空间：{total_size}")
+        self.output(f"每代族群总数：{pop_size}")
+        self.output(f"优良筛选个数：{mu}")
+        self.output(f"迭代次数：{ngen}")
+        self.output(f"交叉概率：{cxpb:.0%}")
+        self.output(f"突变概率：{mutpb:.0%}")
+
+        start = time()
+
+        algorithms.eaMuPlusLambda(
+            pop,
+            toolbox,
+            mu,
+            lambda_,
+            cxpb,
+            mutpb,
+            ngen,
+            stats,
+            halloffame=hof
+        )
+
+        end = time()
+        cost = int((end - start))
+
+        self.output(f"遗传算法优化完成，耗时{cost}秒")
+
+        # Return result list
+        results = []
+
+        for parameter_values in hof:
+            setting = dict(parameter_values)
+            target_value = ga_optimize(parameter_values)[0]
+            results.append((setting, target_value, {}))
+
+        return results
 
     def show_chart(self, df: DataFrame = None):
         """"""
@@ -484,6 +680,7 @@ class BacktestingEngine:
         balance_plot = plt.subplot(4, 1, 1)
         balance_plot.set_title("Balance")
         df["balance"].plot(legend=True)
+        # print(df["balance"])
 
         drawdown_plot = plt.subplot(4, 1, 2)
         drawdown_plot.set_title("Drawdown")
@@ -550,11 +747,13 @@ class BacktestingEngine:
             long_cross = (
                 algo.direction == Direction.LONG
                 and algo.price >= long_cross_price
+                and long_cross_price > 0
             )
 
             short_cross = (
                 algo.direction == Direction.SHORT
                 and algo.price <= short_cross_price
+                and short_cross_price > 0
             )
 
             if not long_cross and not short_cross:
@@ -576,7 +775,7 @@ class BacktestingEngine:
             else:
                 trade_price = short_cross_price
                 pos_change = -algo.volume
-            print(f" self.datetime {self.datetime}")
+
             trade = TradeData(
                 symbol=self.spread.name,
                 exchange=Exchange.LOCAL,
@@ -586,15 +785,10 @@ class BacktestingEngine:
                 offset=algo.offset,
                 price=trade_price,
                 volume=algo.volume,
-                time=self.datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                time=self.datetime.strftime("%H:%M:%S"),
                 gateway_name=self.gateway_name,
             )
             trade.datetime = self.datetime
-
-            if self.mode == BacktestingMode.BAR:
-                trade.value = self.bar.value
-            else:
-                trade.value = trade_price
 
             self.spread.net_pos += pos_change
             self.strategy.on_spread_pos()
@@ -702,297 +896,6 @@ class BacktestingEngine:
         """"""
         pass
 
-    def run_optimization(self, optimization_setting: OptimizationSetting, output=True):
-        """"""
-        # Get optimization setting and target
-        settings = optimization_setting.generate_setting()
-        target_name = optimization_setting.target_name
-
-        if not settings:
-            self.output("优化参数组合为空，请检查")
-            return
-
-        if not target_name:
-            self.output("优化目标未设置，请检查")
-            return
-
-        # Use multiprocessing pool for running backtesting with different setting
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-
-        results = []
-        for setting in settings:
-            result = (pool.apply_async(optimize, (
-                target_name,
-                self.strategy_class,
-                setting,
-                self.spread,
-                self.interval,
-                self.start,
-                self.rate,
-                self.slippage,
-                self.size,
-                self.pricetick,
-                self.capital,
-                self.end,
-                self.mode,
-                # self.inverse
-            )))
-            results.append(result)
-
-        pool.close()
-        pool.join()
-
-        # Sort results and output
-        result_values = [result.get() for result in results]
-        result_values.sort(reverse=True, key=lambda result: result[1])
-
-        if output:
-            for value in result_values:
-                msg = f"参数：{value[0]}, 目标：{value[1]}"
-                self.output(msg)
-
-        return result_values
-
-    def run_ga_optimization(self, optimization_setting: OptimizationSetting, population_size=100, ngen_size=30, output=True):
-        """"""
-        # Get optimization setting and target
-        settings = optimization_setting.generate_setting_ga()
-        target_name = optimization_setting.target_name
-        if not settings:
-            self.output("优化参数组合为空，请检查")
-            return
-
-        if not target_name:
-            self.output("优化目标未设置，请检查")
-            return
-
-        # Define parameter generation function
-        def generate_parameter():
-            """"""
-            return random.choice(settings)
-
-        def mutate_individual(individual, indpb):
-            """"""
-            size = len(individual)
-            paramlist = generate_parameter()
-            for i in range(size):
-                if random.random() < indpb:
-                    individual[i] = paramlist[i]
-            return individual,
-
-        # Create ga object function
-        global ga_target_name
-        global ga_strategy_class
-        global ga_setting
-        global ga_vt_symbol
-        global ga_interval
-        global ga_start
-        global ga_rate
-        global ga_slippage
-        global ga_size
-        global ga_pricetick
-        global ga_capital
-        global ga_end
-        global ga_mode
-        global ga_inverse
-
-        ga_target_name = target_name
-        ga_strategy_class = self.strategy_class
-        ga_setting = settings[0]
-        # ga_vt_symbol = self.vt_symbol
-        ga_vt_symbol = self.spread
-
-        ga_interval = self.interval
-        ga_start = self.start
-        ga_rate = self.rate
-        ga_slippage = self.slippage
-        ga_size = self.size
-        ga_pricetick = self.pricetick
-        ga_capital = self.capital
-        ga_end = self.end
-        ga_mode = self.mode
-        ga_inverse = self.inverse
-
-        # Set up genetic algorithem
-        toolbox = base.Toolbox()
-        toolbox.register("individual", tools.initIterate, creator.Individual, generate_parameter)
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-        toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate", mutate_individual, indpb=1)
-        toolbox.register("evaluate", ga_optimize)
-        toolbox.register("select", tools.selNSGA2)
-
-        total_size = len(settings)
-        pop_size = population_size                      # number of individuals in each generation
-        lambda_ = pop_size                              # number of children to produce at each generation
-        mu = int(pop_size * 0.8)                        # number of individuals to select for the next generation
-
-        cxpb = 0.95         # probability that an offspring is produced by crossover
-        mutpb = 1 - cxpb    # probability that an offspring is produced by mutation
-        ngen = ngen_size    # number of generation
-
-        pop = toolbox.population(pop_size)
-        hof = tools.ParetoFront()               # end result of pareto front
-
-        stats = tools.Statistics(lambda ind: ind.fitness.values)
-        np.set_printoptions(suppress=True)
-        stats.register("mean", np.mean, axis=0)
-        stats.register("std", np.std, axis=0)
-        stats.register("min", np.min, axis=0)
-        stats.register("max", np.max, axis=0)
-
-        # Multiprocessing is not supported yet.
-        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        # toolbox.register("map", pool.map)
-
-        # Run ga optimization
-        self.output(f"参数优化空间：{total_size}")
-        self.output(f"每代族群总数：{pop_size}")
-        self.output(f"优良筛选个数：{mu}")
-        self.output(f"迭代次数：{ngen}")
-        self.output(f"交叉概率：{cxpb:.0%}")
-        self.output(f"突变概率：{mutpb:.0%}")
-
-        start = time()
-
-        algorithms.eaMuPlusLambda(
-            pop,
-            toolbox,
-            mu,
-            lambda_,
-            cxpb,
-            mutpb,
-            ngen,
-            stats,
-            halloffame=hof
-        )
-
-        end = time()
-        cost = int((end - start))
-
-        self.output(f"遗传算法优化完成，耗时{cost}秒")
-
-        # Return result list
-        results = []
-
-        for parameter_values in hof:
-            setting = dict(parameter_values)
-            target_value = ga_optimize(parameter_values)[0]
-            results.append((setting, target_value, {}))
-
-        return results
-    #
-    # def run_optimization(
-    #     self,
-    #     class_name: str,
-    #     # vt_symbol: str,
-    #     spread: SpreadData,
-    #     interval: str,
-    #     start: datetime,
-    #     end: datetime,
-    #     rate: float,
-    #     slippage: float,
-    #     size: int,
-    #     pricetick: float,
-    #     capital: int,
-    #     inverse: bool,
-    #     optimization_setting: OptimizationSetting,
-    #     use_ga: bool
-    # ):
-    #     """"""
-    #     if use_ga:
-    #         self.write_log("开始遗传算法参数优化")
-    #     else:
-    #         self.write_log("开始多进程参数优化")
-    #
-    #     self.result_values = None
-    #
-    #     engine = self.backtesting_engine
-    #     engine.clear_data()
-    #
-    #     engine.set_parameters(
-    #         spread=spread,
-    #         interval=interval,
-    #         start=start,
-    #         end=end,
-    #         rate=rate,
-    #         slippage=slippage,
-    #         size=size,
-    #         pricetick=pricetick,
-    #         capital=capital,
-    #         # inverse=inverse
-    #     )
-    #
-    #     strategy_class = self.classes[class_name]
-    #     engine.add_strategy(
-    #         strategy_class,
-    #         {}
-    #     )
-    #
-    #     if use_ga:
-    #         self.result_values = engine.run_ga_optimization(
-    #             optimization_setting,
-    #             output=False
-    #         )
-    #     else:
-    #         self.result_values = engine.run_optimization(
-    #             optimization_setting,
-    #             output=False
-    #         )
-    #
-    #     # Clear thread object handler.
-    #     self.thread = None
-    #     self.write_log("多进程参数优化完成")
-    #
-    #     # Put optimization done event
-    #     event = Event(EVENT_BACKTESTER_OPTIMIZATION_FINISHED)
-    #     self.event_engine.put(event)
-
-    def start_optimization(
-        self,
-        class_name: str,
-        vt_symbol: str,
-        interval: str,
-        start: datetime,
-        end: datetime,
-        rate: float,
-        slippage: float,
-        size: int,
-        pricetick: float,
-        capital: int,
-        inverse: bool,
-        optimization_setting: OptimizationSetting,
-        use_ga: bool
-    ):
-        if self.thread:
-            self.write_log("已有任务在运行中，请等待完成")
-            return False
-
-        self.write_log("-" * 40)
-        self.thread = Thread(
-            target=self.run_optimization,
-            args=(
-                class_name,
-                vt_symbol,
-                interval,
-                start,
-                end,
-                rate,
-                slippage,
-                size,
-                pricetick,
-                capital,
-                inverse,
-                optimization_setting,
-                use_ga
-            )
-        )
-        self.thread.start()
-
-        return True
-
-
-
 
 class DailyResult:
     """"""
@@ -1055,7 +958,7 @@ class DailyResult:
 
             self.end_pos += pos_change
 
-            turnover = trade.volume * size * trade.value
+            turnover = trade.volume * size * trade.price
             self.trading_pnl += pos_change * \
                 (self.close_price - trade.price) * size
             self.slippage += trade.volume * size * slippage
@@ -1069,58 +972,12 @@ class DailyResult:
 
 
 
-def optimize(
-    target_name: str,
-    strategy_class: SpreadStrategyTemplate,
-    setting: dict,
-    # vt_symbol: str,
-    spread: SpreadData,
-    interval: Interval,
-    start: datetime,
-    rate: float,
-    slippage: float,
-    size: float,
-    pricetick: float,
-    capital: int,
-    end: datetime,
-    mode: BacktestingMode,
-    # inverse: bool
-):
-    """
-    Function for running in multiprocessing.pool
-    """
-    engine = BacktestingEngine()
-
-    engine.set_parameters(
-        # vt_symbol=vt_symbol,
-        spread=spread,
-        interval=interval,
-        start=start,
-        rate=rate,
-        slippage=slippage,
-        size=size,
-        pricetick=pricetick,
-        capital=capital,
-        end=end,
-        mode=mode,
-        # inverse=inverse
-    )
-
-    engine.add_strategy(strategy_class, setting)
-    engine.load_data()
-    engine.run_backtesting()
-    engine.calculate_result()
-    statistics = engine.calculate_statistics(output=False)
-
-    target_value = statistics[target_name]
-    return (str(setting), target_value, statistics)
-
 
 @lru_cache(maxsize=1000000)
 def _ga_optimize(parameter_values: tuple):
     """"""
     setting = dict(parameter_values)
-    print(f"jksjkfjs  {setting}")
+
     result = optimize(
         ga_target_name,
         ga_strategy_class,
@@ -1135,7 +992,7 @@ def _ga_optimize(parameter_values: tuple):
         ga_capital,
         ga_end,
         ga_mode,
-        # ga_inverse
+        ga_inverse
     )
     return (result[1],)
 
@@ -1145,7 +1002,31 @@ def ga_optimize(parameter_values: list):
     return _ga_optimize(tuple(parameter_values))
 
 
+@lru_cache(maxsize=999)
+def load_bar_data(
+    symbol: str,
+    exchange: Exchange,
+    interval: Interval,
+    start: datetime,
+    end: datetime
+):
+    """"""
+    return database_manager.load_bar_data(
+        symbol, exchange, interval, start, end
+    )
 
+
+@lru_cache(maxsize=999)
+def load_tick_data(
+    symbol: str,
+    exchange: Exchange,
+    start: datetime,
+    end: datetime
+):
+    """"""
+    return database_manager.load_tick_data(
+        symbol, exchange, start, end
+    )
 
 
 # GA related global value

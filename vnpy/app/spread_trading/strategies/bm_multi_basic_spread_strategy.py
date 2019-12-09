@@ -23,7 +23,7 @@ class BmMultiBasicSpreadStrategy(SpreadStrategyTemplate):
     sell_price = 50
     cover_price = 50
     short_price = 150
-    max_pos = 1.0
+    max_pos = 100.0
     payup = 10
     interval = 5
 
