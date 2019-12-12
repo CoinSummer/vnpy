@@ -370,6 +370,8 @@ class BacktesterEngine(BaseEngine):
 
         contract = self.main_engine.get_contract(vt_symbol)
 
+        sleep(0.5)
+
         try:
             # If history data provided in gateway, then query
             if contract and contract.history_data:
