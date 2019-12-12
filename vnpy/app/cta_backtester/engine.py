@@ -5,6 +5,7 @@ from datetime import datetime
 from threading import Thread
 from pathlib import Path
 from inspect import getfile
+from time import sleep
 
 from vnpy.event import Event, EventEngine
 from vnpy.trader.engine import BaseEngine, MainEngine
