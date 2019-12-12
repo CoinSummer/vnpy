@@ -808,6 +808,8 @@ class CoinbaseRestApi(RestClient):
         time_delta = TIMEDELTA_MAP[req.interval]
 
         while True:
+
+            time.sleep(0.5)
             # Break if start time later than end time
             if start > req.end:
                 break

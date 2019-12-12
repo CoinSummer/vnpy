@@ -5,7 +5,6 @@ from datetime import datetime
 from threading import Thread
 from pathlib import Path
 from inspect import getfile
-from time import sleep
 
 from vnpy.event import Event, EventEngine
 from vnpy.trader.engine import BaseEngine, MainEngine
@@ -370,8 +369,6 @@ class BacktesterEngine(BaseEngine):
         )
 
         contract = self.main_engine.get_contract(vt_symbol)
-
-        sleep(0.5)
 
         try:
             # If history data provided in gateway, then query
