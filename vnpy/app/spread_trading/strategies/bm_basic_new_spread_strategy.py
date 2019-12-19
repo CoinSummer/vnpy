@@ -9,10 +9,10 @@ from vnpy.app.spread_trading import (
 
 )
 from vnpy.trader.utility import BarGenerator, ArrayManager
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta , date
 
 
-class BmBasicSpreadStrategy(SpreadStrategyTemplate):
+class BmBasicNewSpreadStrategy(SpreadStrategyTemplate):
     """
     只远期开空，近期开多
     符合平仓条件后，平空 平多
@@ -27,6 +27,11 @@ class BmBasicSpreadStrategy(SpreadStrategyTemplate):
     max_pos = 100.0
     payup = 10
     interval = 5
+    end_date = None
+    end_days = 3 # end_date 结束前3天平仓暂停
+
+
+    test_type = 1  # 1 = 回测  2=实盘
 
     spread_pos = 0.0
     buy_algoid = ""
@@ -99,42 +104,72 @@ class BmBasicSpreadStrategy(SpreadStrategyTemplate):
 
     def on_10min_bar(self, bar: BarData):
         self.spread_pos = self.get_spread_pos()
-        print(bar.datetime, bar.close_price)
+        # print(bar.datetime, bar.close_price)
+        # print(self.end_date)
 
-        if not self.spread_pos:
-            self.stop_close_algos()
+        if not self.end_date:
+            print("无截止日期参数  break")
+            return
 
-            # # Start open algos
-            # if not self.buy_algoid:
-            #     self.buy_algoid = self.start_long_algo(
-            #         self.buy_price, self.max_pos, self.payup, self.interval
-            #     )
+        date_parse = datetime.strptime(self.end_date, '%Y-%m-%d')
 
-            if not self.short_algoid:
-                self.short_algoid = self.start_short_algo(
-                    self.short_price, self.max_pos, self.payup, self.interval
-                )
+        if self.test_type == 1:
+            time_now = bar.datetime
+        else:
+            time_now = datetime.now()
 
-        # # Long position
-        # elif self.spread_pos > 0:
-        #     self.stop_open_algos()
-        #
-        #     # Start sell close algo
-        #     if not self.sell_algoid:
-        #         self.sell_algoid = self.start_short_algo(
-        #             self.sell_price, self.spread_pos, self.payup, self.interval
-        #         )
 
-        # Short position
-        elif self.spread_pos < 0:
-            self.stop_open_algos()
+        if  (time_now <= (date_parse - timedelta(days = self.end_days))):
+            # No position
+            if not self.spread_pos:
+                self.stop_close_algos()
 
-            # Start cover close algo
-            if not self.cover_algoid:
-                self.cover_algoid = self.start_long_algo(
-                    self.cover_price, abs(
-                        self.spread_pos), self.payup, self.interval
-                )
+                # # Start open algos
+                # if not self.buy_algoid:
+                #     self.buy_algoid = self.start_long_algo(
+                #         self.buy_price, self.max_pos, self.payup, self.interval
+                #     )
+
+                if not self.short_algoid:
+                    print(f"开仓时间 {time_now} ")
+
+                    self.short_algoid = self.start_short_algo(
+                        self.short_price, self.max_pos, self.payup, self.interval
+                    )
+
+            # # Long position
+            # elif self.spread_pos > 0:
+            #     self.stop_open_algos()
+            #
+            #     # Start sell close algo
+            #     if not self.sell_algoid:
+            #         self.sell_algoid = self.start_short_algo(
+            #             self.sell_price, self.spread_pos, self.payup, self.interval
+            #         )
+
+            # Short position
+            elif self.spread_pos < 0:
+                self.stop_open_algos()
+
+                # Start cover close algo
+                if not self.cover_algoid:
+                    self.cover_algoid = self.start_long_algo(
+                        self.cover_price, abs(
+                            self.spread_pos), self.payup, self.interval
+                    )
+        else:
+            if self.spread_pos < 0:
+
+                self.stop_open_algos()
+                # print("仅平仓")
+                # Start cover close algo
+                if not self.cover_algoid:
+                    print(f"平仓时间 {time_now} ")
+
+                    self.cover_algoid = self.start_long_algo(
+                        self.cover_price, abs(
+                            self.spread_pos), self.payup, self.interval
+                    )
 
         self.put_event()
 

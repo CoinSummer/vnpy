@@ -578,7 +578,7 @@ class BacktestingEngine:
             else:
                 trade_price = short_cross_price
                 pos_change = -algo.volume
-            print(f" self.datetime {self.datetime}")
+            # print(f" self.datetime {self.datetime}")
             trade = TradeData(
                 symbol=self.spread.name,
                 exchange=Exchange.LOCAL,
