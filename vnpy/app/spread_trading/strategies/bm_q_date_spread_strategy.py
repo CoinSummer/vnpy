@@ -122,6 +122,7 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
         date_parse = datetime.strptime(self.end_date, '%Y-%m-%d')
         # print(date_parse)
         # print(date_parse, time_now, (time_now <= (date_parse - timedelta(days=self.end_days))), bar.close_price, date_parse - timedelta(days=self.end_days))
+        print(bar.close_price, bar.datetime)
         if (time_now <= (date_parse - timedelta(days = self.end_days))):
             # 当在开单区间内执行正常逻辑
             # No position
