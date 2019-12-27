@@ -22,6 +22,7 @@ class TradingClient(RpcClient):
 
     def callback(self, topic, data):
         """"""
+        print(topic, data)
         event_queue.put((topic, data))
 
 
@@ -42,7 +43,8 @@ with open("web_setting.json") as f:
     setting = json.load(f)
     USERNAME = setting["username"]
     PASSWORD = setting["password"]
-    TOKEN = base64.encodestring(TODAY+PASSWORD).replace("\n","")
+    buf = (TODAY + PASSWORD).encode()
+    TOKEN = base64.encodebytes(buf).decode().replace("\n","")
 
 
 # 创建Flask对象
@@ -55,7 +57,7 @@ api = Api(app)
 def error(msg):
     return {"result_code": "error", "message": msg}
 
-def token_error()():
+def token_error():
     return error("Invalid token.")
 
 def success(data):
@@ -79,9 +81,47 @@ class Token(Resource):
         password = args["password"]
         
         if username == USERNAME and password == PASSWORD:
-            return success(Token)
+            return success(TOKEN)
         else:
             return error("Wrong username or password.")
+
+
+class Gateway(Resource):
+    """接口"""
+
+    def __init__(self):
+        """初始化"""
+        self.parser = reqparse.RequestParser()    
+        self.parser.add_argument("token")
+        self.parser.add_argument("setting")
+        self.parser.add_argument("gateway_name")
+        
+        super().__init__()
+    
+    def get(self):
+        """查询"""
+        args = self.parser.parse_args()
+        token = args["token"]
+        if token != TOKEN:
+            return token_error()
+        
+        data = trading_client.get_all_gateway_names()
+        return success(data)
+    
+    def post(self):
+        """新增"""
+        args = self.parser.parse_args()
+        token = args["token"]
+        if token != TOKEN:
+            return token_error()
+
+        setting = json.loads(args["setting"])
+        
+        trading_client.connect(
+            setting,
+            args["gateway_name"]
+        )
+        return success("")
 
 
 class Spread(Resource):
@@ -93,12 +133,14 @@ class Spread(Resource):
         self.get_parser.add_argument("token")
         
         self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("token")
         self.post_parser.add_argument("name")
         self.post_parser.add_argument("leg_settings")
         self.post_parser.add_argument("active_symbol")
         self.post_parser.add_argument("min_volume")
         
         self.delete_parser = reqparse.RequestParser()
+        self.delete_parser.add_argument("token")
         self.delete_parser.add_argument("name")
         
         super().__init__()
@@ -110,7 +152,8 @@ class Spread(Resource):
         if token != TOKEN:
             return token_error()
         
-        data = trading_client.get_all_spreads()
+        spreads = trading_client.get_all_spreads()
+        data = [spread.name for spread in spreads]
         return success(data)
     
     def post(self):
@@ -119,10 +162,12 @@ class Spread(Resource):
         token = args["token"]
         if token != TOKEN:
             return token_error()
+
+        leg_settings = json.loads(args["leg_settings"])
         
         trading_client.add_spread(
             args["name"],
-            args["leg_settings"],
+            leg_settings,
             args["active_symbol"],
             args["min_volume"],
             True
@@ -168,13 +213,13 @@ class Algo(Resource):
             return token_error()
         
         algoid = trading_client.start_algo(
-            args["spread_name"]
-            args["direction"]
-            args["offset"]
-            args["price"]
-            args["volume"]
-            args["payup"]
-            args["interval"]
+            args["spread_name"],
+            args["direction"],
+            args["offset"],
+            args["price"],
+            args["volume"],
+            args["payup"],
+            args["interval"],
             False
         )
         return success(algoid)
@@ -208,6 +253,13 @@ def echo_socket(ws):
 @app.route("/")
 def hello():
     return "Hello World!"
+
+
+# 注册REST资源
+api.add_resource(Gateway, "/gateway")
+api.add_resource(Token, "/token")
+api.add_resource(Spread, "/spread")
+api.add_resource(Algo, "/algo")
 
 
 if __name__ == "__main__":
