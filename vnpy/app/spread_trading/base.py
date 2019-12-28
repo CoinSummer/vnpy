@@ -169,6 +169,7 @@ class SpreadData:
                 self.passive_legs.append(leg)
 
             price_multiplier = self.price_multipliers[leg.vt_symbol]
+
             if price_multiplier > 0:
                 self.price_formula += f"+{price_multiplier}*{leg.vt_symbol}"
             else:
@@ -185,6 +186,7 @@ class SpreadData:
         self.ask_price: float = 0
         self.bid_volume: float = 0
         self.ask_volume: float = 0
+        # self.spread_rate: float = 0
 
         self.net_pos: float = 0
         self.datetime: datetime = None
@@ -298,6 +300,7 @@ class SpreadData:
         self.ask_price = 0
         self.bid_volume = 0
         self.ask_volume = 0
+        self.spread_rate = 0
 
     def calculate_leg_volume(self, vt_symbol: str, spread_volume: float) -> float:
         """"""
@@ -368,12 +371,11 @@ def load_bar_data(
     interval: Interval,
     start: datetime,
     end: datetime,
-    pricetick: float = 0
+    pricetick: float = 0,
 ):
     """"""
     # Load bar data of each spread leg
     leg_bars: Dict[str, Dict] = {}
-
     for vt_symbol in spread.legs.keys():
         symbol, exchange = extract_vt_symbol(vt_symbol)
 
@@ -389,14 +391,19 @@ def load_bar_data(
 
     for dt in bars.keys():
         spread_price = 0
+        spread_rate = 0.0
         spread_available = True
 
         for leg in spread.legs.values():
             leg_bar = leg_bars[leg.vt_symbol].get(dt, None)
-
+            spread_tmp = 0.0
+            # print(f"leg {leg_bar}")
             if leg_bar:
                 price_multiplier = spread.price_multipliers[leg.vt_symbol]
+                spread_tmp = price_multiplier * leg_bar.close_price
                 spread_price += price_multiplier * leg_bar.close_price
+                spread_rate = spread_price / abs(spread_tmp) * 100
+                # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
             else:
                 spread_available = False
 
@@ -413,8 +420,11 @@ def load_bar_data(
                 high_price=spread_price,
                 low_price=spread_price,
                 close_price=spread_price,
+                spread_rate=spread_rate,
                 gateway_name="SPREAD",
             )
+
+            # print(f"ljlsajf {spread_bar}")
             spread_bars.append(spread_bar)
 
     return spread_bars
