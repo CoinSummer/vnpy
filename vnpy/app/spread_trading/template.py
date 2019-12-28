@@ -30,6 +30,7 @@ class SpreadAlgoTemplate:
         payup: int,
         interval: int,
         lock: bool,
+        spread_rate: float = 0
     ):
         """"""
         self.algo_engine = algo_engine
@@ -45,6 +46,7 @@ class SpreadAlgoTemplate:
         self.payup: int = payup
         self.interval = interval
         self.lock = lock
+        self.spread_rate: float = spread_rate # spread_rate for traded algo
 
         if direction == Direction.LONG:
             self.target = volume
@@ -486,6 +488,7 @@ class SpreadStrategyTemplate:
         payup: int,
         interval: int,
         lock: bool,
+        spread_rate: float,
         offset: Offset
     ) -> str:
         """"""
@@ -500,8 +503,9 @@ class SpreadStrategyTemplate:
             price,
             volume,
             payup,
+            spread_rate,
             interval,
-            lock
+            lock,
         )
 
         self.algoids.add(algoid)
@@ -514,13 +518,14 @@ class SpreadStrategyTemplate:
         volume: float,
         payup: int,
         interval: int,
+        spread_rate: float = 0,
         lock: bool = False,
-        offset: Offset = Offset.NONE
+        offset: Offset = Offset.NONE,
     ) -> str:
-        """"""
+
         return self.start_algo(
             Direction.LONG, price, volume,
-            payup, interval, lock, offset
+            payup, interval, spread_rate, lock, offset
         )
 
     def start_short_algo(
@@ -529,13 +534,14 @@ class SpreadStrategyTemplate:
         volume: float,
         payup: int,
         interval: int,
+        spread_rate: float = 0,
         lock: bool = False,
         offset: Offset = Offset.NONE
     ) -> str:
-        """"""
+
         return self.start_algo(
             Direction.SHORT, price, volume,
-            payup, interval, lock, offset
+            payup, interval, spread_rate, lock,  offset
         )
 
     def start_cover_algo(
@@ -544,13 +550,14 @@ class SpreadStrategyTemplate:
             volume: float,
             payup: int,
             interval: int,
+            spread_rate: float,
             lock: bool = False,
             offset: Offset = Offset.CLOSE
     ) -> str:
         """"""
         return self.start_algo(
             Direction.SHORT, price, volume,
-            payup, interval, lock, offset
+            payup, interval, spread_rate, lock, offset
         )
     def stop_algo(self, algoid: str):
         """"""

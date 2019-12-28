@@ -33,6 +33,9 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
     end_days = 1     # 每月最后一个周五前x天执行平仓策略
     test_type = 1  # 1 = 回测  2=实盘
 
+    short_rate = 2.3
+    cover_rate = 0.4
+
     end_date = None
 
     spread_pos = 0.0
@@ -52,7 +55,9 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
         "stard_days",
         "end_days",
         "test_type",
-        "end_date"
+        "end_date",
+        "short_rate",
+        "cover_rate"
 
     ]
     variables = [
@@ -120,9 +125,10 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
             time_now = datetime.now()
 
         date_parse = datetime.strptime(self.end_date, '%Y-%m-%d')
+
         # print(date_parse)
         # print(date_parse, time_now, (time_now <= (date_parse - timedelta(days=self.end_days))), bar.close_price, date_parse - timedelta(days=self.end_days))
-        print(bar.close_price, bar.datetime)
+
         if (time_now <= (date_parse - timedelta(days = self.end_days))):
             # 当在开单区间内执行正常逻辑
             # No position
@@ -130,10 +136,10 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
                 self.stop_close_algos()
                 if not self.short_algoid:
                     self.short_algoid = self.start_short_algo(
-                        self.short_price, self.max_pos, self.payup, self.interval
+                        self.short_price, self.max_pos, self.payup, self.interval, self.short_rate
                     )
-                    if self.short_algoid:
-                        print(f" 正常开仓时间 {time_now}")
+                    # if self.short_algoid:
+                    #     print(f" 正常开仓时间 {time_now}")
 
             # Short position
             elif self.spread_pos < 0:
@@ -142,10 +148,10 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
                 if not self.cover_algoid:
                     self.cover_algoid = self.start_long_algo(
                         self.cover_price, abs(
-                            self.spread_pos), self.payup, self.interval
+                            self.spread_pos), self.payup, self.interval,  self.cover_rate
                     )
-                    if self.cover_algoid:
-                        print(f" 正常平仓时间 {time_now}")
+                    # if self.cover_algoid:
+                    #     print(f" 正常平仓时间 {time_now}")
         else:
             if self.spread_pos < 0:
                 # 当超出策略执行时间，且有仓位时。 仅仅平仓。
@@ -156,15 +162,15 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
                     # print(f" 强制平仓时间 {time_now} {bar.close_price}")
                     self.cover_algoid = self.start_long_algo(
                         bar.close_price, abs(
-                            self.spread_pos), self.payup, self.interval
+                            self.spread_pos), self.payup, self.interval,  self.cover_rate
                     )
-                    if self.cover_algoid:
-                        print(f" 强制平仓时间 {time_now}")
+                    # if self.cover_algoid:
+                    #     print(f" 强制平仓时间 {time_now}")
 
             elif self.spread_pos == 0:
                 self.stop_open_algos()
                 self.stop_close_algos()
-                print(f"仅ing平仓 无 仓位  {time_now} ")
+                # print(f"仅ing平仓 无 仓位  {time_now} ")
                 pass
 
         self.put_event()

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime
+from threading import Thread
 from typing import Callable, Type
 
 import numpy as np
@@ -138,6 +139,7 @@ class BacktestingEngine:
 
         self.trade_count = 0
         self.trades = {}
+        self.orders = {}
 
         self.logs = []
 
@@ -290,6 +292,7 @@ class BacktestingEngine:
         start_pos = 0
 
         for daily_result in self.daily_results.values():
+            # print(f"daily reault {daily_result.__dict__}")
             daily_result.calculate_pnl(
                 pre_close,
                 start_pos,
@@ -484,10 +487,10 @@ class BacktestingEngine:
         balance_plot = plt.subplot(4, 1, 1)
         balance_plot.set_title("Balance")
         df["balance"].plot(legend=True)
-
         drawdown_plot = plt.subplot(4, 1, 2)
         drawdown_plot.set_title("Drawdown")
         drawdown_plot.fill_between(range(len(df)), df["drawdown"].values)
+
 
         pnl_plot = plt.subplot(4, 1, 3)
         pnl_plot.set_title("Daily Pnl")
@@ -541,12 +544,18 @@ class BacktestingEngine:
         if self.mode == BacktestingMode.BAR:
             long_cross_price = self.bar.close_price
             short_cross_price = self.bar.close_price
+            cross_rate = self.bar.spread_rate
+
         else:
             long_cross_price = self.tick.ask_price_1
             short_cross_price = self.tick.bid_price_1
+            cross_rate = self.bar.spread_rate
 
+
+        # print(f"cross algo {self.bar.__dict__}")
         for algo in list(self.active_algos.values()):
             # Check whether limit orders can be filled.
+<<<<<<< HEAD
             long_cross = (
                 algo.direction == Direction.LONG
                 and algo.price >= long_cross_price
@@ -556,6 +565,40 @@ class BacktestingEngine:
                 algo.direction == Direction.SHORT
                 and algo.price <= short_cross_price
             )
+=======
+            # print(f"algo value {algo.spread.__dict__}")
+            # print(f"[algo info]  {algo.__dict__} {cross_rate} {long_cross_price}")
+            if algo.spread_rate == 0:
+                long_cross = (
+                    algo.direction == Direction.LONG
+                    and algo.price >= long_cross_price
+                    and long_cross_price > 0
+                )
+
+                short_cross = (
+                    algo.direction == Direction.SHORT
+                    and algo.price <= short_cross_price
+                    and short_cross_price > 0
+                )
+            else:
+                long_cross = (
+                        algo.direction == Direction.LONG
+                        # and algo.price >= long_cross_price
+                        and long_cross_price > 0
+                        and algo.spread_rate >= cross_rate
+                )
+
+                # print(f"long cross {long_cross} {algo.direction} {algo.price} {long_cross_price}  {algo.spread_rate} {cross_rate}")
+
+                short_cross = (
+                        algo.direction == Direction.SHORT
+                        # and algo.price <= short_cross_price
+                        and short_cross_price > 0
+                        and algo.spread_rate <= cross_rate
+
+                )
+                # print(f"short cross {short_cross} {algo.direction} {algo.price} {short_cross_price}  {algo.spread_rate} {cross_rate}")
+>>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
 
             if not long_cross and not short_cross:
                 continue
@@ -588,6 +631,9 @@ class BacktestingEngine:
                 volume=algo.volume,
                 time=self.datetime.strftime("%Y-%m-%d %H:%M:%S"),
                 gateway_name=self.gateway_name,
+                spread_rate=self.bar.spread_rate
+
+
             )
             trade.datetime = self.datetime
 
@@ -623,7 +669,9 @@ class BacktestingEngine:
         volume: float,
         payup: int,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float,
+
     ) -> str:
         """"""
         self.algo_count += 1
@@ -639,9 +687,10 @@ class BacktestingEngine:
             volume,
             payup,
             interval,
-            lock
+            lock,
+            spread_rate
         )
-
+        # print(f"[start_algo] {algo.spread.__dict__}")
         self.algos[algoid] = algo
         self.active_algos[algoid] = algo
 
@@ -1120,7 +1169,6 @@ def optimize(
 def _ga_optimize(parameter_values: tuple):
     """"""
     setting = dict(parameter_values)
-    print(f"jksjkfjs  {setting}")
     result = optimize(
         ga_target_name,
         ga_strategy_class,

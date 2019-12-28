@@ -192,6 +192,7 @@ class BarGenerator:
         if not self.bar:
             new_minute = True
         elif self.bar.datetime.minute != tick.datetime.minute:
+            # elif self.bar.datetime.second < 40 and tick.datetime.secoind >= 40： # 修改tick 切分 k 线
             self.bar.datetime = self.bar.datetime.replace(
                 second=0, microsecond=0
             )
@@ -228,6 +229,7 @@ class BarGenerator:
     def update_bar(self, bar: BarData) -> None:
         """
         Update 1 minute bar into generator
+        add spread_rate in update_bar
         """
         # If not inited, creaate window bar object
         if not self.window_bar:
@@ -244,7 +246,8 @@ class BarGenerator:
                 gateway_name=bar.gateway_name,
                 open_price=bar.open_price,
                 high_price=bar.high_price,
-                low_price=bar.low_price
+                low_price=bar.low_price,
+                spread_rate=bar.spread_rate
             )
         # Otherwise, update high/low price into window bar
         else:
@@ -257,6 +260,8 @@ class BarGenerator:
         self.window_bar.close_price = bar.close_price
         self.window_bar.volume += int(bar.volume)
         self.window_bar.open_interest = bar.open_interest
+        self.window_bar.spread_rate = bar.spread_rate
+
 
         # Check if window bar completed
         finished = False
@@ -280,6 +285,7 @@ class BarGenerator:
 
         if finished:
             self.on_window_bar(self.window_bar)
+            # print(f" utility bar data ++++ {self.window_bar}")
             self.window_bar = None
 
         # Cache last bar object
