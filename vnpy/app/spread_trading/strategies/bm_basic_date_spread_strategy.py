@@ -50,7 +50,7 @@ class BmBasicDateSpreadStrategy(SpreadStrategyTemplate):
         "max_pos",
         "payup",
         "interval",
-        "stard_days",
+        "start_days",
         "end_days",
         "test_type"
 

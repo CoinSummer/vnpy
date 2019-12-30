@@ -27,7 +27,7 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
     cover_price = 50
     short_price = 150
     max_pos = 100.0
-    payup = 10
+    payup = 10.0
     interval = 5
     start_days = 3  # 每月第x天开始执行策略
     end_days = 1     # 每月最后一个周五前x天执行平仓策略
@@ -36,7 +36,7 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
     short_rate = 2.3
     cover_rate = 0.4
 
-    end_date = None
+    end_date = ""
 
     spread_pos = 0.0
     buy_algoid = ""
@@ -52,7 +52,7 @@ class BmQDateSpreadStrategy(SpreadStrategyTemplate):
         "max_pos",
         "payup",
         "interval",
-        "stard_days",
+        "start_days",
         "end_days",
         "test_type",
         "end_date",
