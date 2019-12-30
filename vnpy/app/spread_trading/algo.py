@@ -21,15 +21,16 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float
     ):
         """"""
         super().__init__(
             algo_engine, algoid, spread,
             direction, offset, price, volume,
-            payup, interval, lock
+            payup, interval, lock, spread_rate
         )
 
         self.cancel_interval: int = 2
@@ -159,7 +160,7 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool
     ):

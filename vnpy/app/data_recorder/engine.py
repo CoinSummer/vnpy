@@ -66,7 +66,6 @@ class RecorderEngine(BaseEngine):
             try:
                 task = self.queue.get(timeout=1)
                 task_type, data = task
-
                 if task_type == "tick":
                     database_manager.save_tick_data([data])
                 elif task_type == "bar":

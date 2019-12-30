@@ -27,7 +27,7 @@ class SpreadAlgoTemplate:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool,
         spread_rate: float = 0
@@ -43,7 +43,8 @@ class SpreadAlgoTemplate:
         self.direction: Direction = direction
         self.price: float = price
         self.volume: float = volume
-        self.payup: int = payup
+        # self.payup: int = payup
+        self.payup: float = payup
         self.interval = interval
         self.lock = lock
         self.spread_rate: float = spread_rate # spread_rate for traded algo
@@ -485,7 +486,7 @@ class SpreadStrategyTemplate:
         direction: Direction,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool,
         spread_rate: float,
@@ -516,7 +517,7 @@ class SpreadStrategyTemplate:
         self,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         spread_rate: float = 0,
         lock: bool = False,
@@ -532,7 +533,7 @@ class SpreadStrategyTemplate:
         self,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         spread_rate: float = 0,
         lock: bool = False,
@@ -548,7 +549,7 @@ class SpreadStrategyTemplate:
             self,
             price: float,
             volume: float,
-            payup: int,
+            payup: float,
             interval: int,
             spread_rate: float,
             lock: bool = False,

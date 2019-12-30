@@ -650,7 +650,7 @@ class BacktestingEngine:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool,
         spread_rate: float,
