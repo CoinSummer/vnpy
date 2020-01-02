@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List
 
 from rqdatac import init as rqdata_init
@@ -57,7 +57,7 @@ class RqdataClient:
         )
 
         try:
-            df = rqdata_all_instruments(date=datetime.now())
+            df = rqdata_all_instruments()
             for ix, row in df.iterrows():
                 self.symbols.add(row['order_book_id'])
         except (RuntimeError, AuthenticationFailed):
@@ -130,7 +130,7 @@ class RqdataClient:
         df = rqdata_get_price(
             rq_symbol,
             frequency=rq_interval,
-            fields=["open", "high", "low", "close", "volume"],
+            fields=["open", "high", "low", "close", "volume", "open_interest"],
             start_date=start,
             end_date=end,
             adjust_type="none"
@@ -150,6 +150,7 @@ class RqdataClient:
                     low_price=row["low"],
                     close_price=row["close"],
                     volume=row["volume"],
+                    open_interest=row["open_interest"],
                     gateway_name="RQ"
                 )
                 data.append(bar)
