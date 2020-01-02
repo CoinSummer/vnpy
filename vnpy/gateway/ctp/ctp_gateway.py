@@ -595,10 +595,16 @@ class CtpTdApi(TdApi):
 
             # For option only
             if contract.product == Product.OPTION:
-                contract.option_portfolio = data["ProductID"]
+                # Remove C/P suffix of CZCE option product name
+                if contract.exchange == Exchange.CZCE:
+                    contract.option_portfolio = data["ProductID"][:-1]
+                else:
+                    contract.option_portfolio = data["ProductID"]
+
                 contract.option_underlying = data["UnderlyingInstrID"]
                 contract.option_type = OPTIONTYPE_CTP2VT.get(data["OptionsType"], None)
                 contract.option_strike = data["StrikePrice"]
+                contract.option_index = str(data["StrikePrice"])
                 contract.option_expiry = datetime.strptime(data["ExpireDate"], "%Y%m%d")
 
             self.gateway.on_contract(contract)
@@ -752,11 +758,11 @@ class CtpTdApi(TdApi):
         """
         Send new order.
         """
-        self.order_ref += 1
-
         if req.offset not in OFFSET_VT2CTP:
             self.gateway.write_log("请选择开平方向")
             return ""
+
+        self.order_ref += 1
 
         ctp_req = {
             "InstrumentID": req.symbol,
