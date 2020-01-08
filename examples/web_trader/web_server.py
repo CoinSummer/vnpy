@@ -8,6 +8,7 @@ from flask_sockets import Sockets
 from flask_restful import Api, Resource, reqparse
 
 from vnpy.rpc import RpcClient
+from vnpy.trader.constant import Direction, Offset
 
 
 # 创建RPC客户端
@@ -214,8 +215,8 @@ class Algo(Resource):
         
         algoid = trading_client.start_algo(
             args["spread_name"],
-            args["direction"],
-            args["offset"],
+            Direction(args["direction"]),
+            Offset(args["offset"]),
             args["price"],
             args["volume"],
             args["payup"],
@@ -237,7 +238,7 @@ class Algo(Resource):
 
 
 @sockets.route("/event")
-def echo_socket(ws):
+def run_socket(ws):
     while not ws.closed:
         try:
             topic, data = event_queue.get(timeout=1) 
@@ -256,8 +257,8 @@ def hello():
 
 
 # 注册REST资源
-api.add_resource(Gateway, "/gateway")
 api.add_resource(Token, "/token")
+api.add_resource(Gateway, "/gateway")
 api.add_resource(Spread, "/spread")
 api.add_resource(Algo, "/algo")
 

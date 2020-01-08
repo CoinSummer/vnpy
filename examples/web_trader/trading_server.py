@@ -11,6 +11,7 @@ from vnpy.app.spread_trading.base import (
     EVENT_SPREAD_DATA, EVENT_SPREAD_POS, EVENT_SPREAD_LOG,
     EVENT_SPREAD_ALGO, EVENT_SPREAD_STRATEGY
 )
+from vnpy.trader.ui import create_qapp, MainWindow
 
 class SpreadTradingServer(RpcServer):
 
@@ -56,8 +57,8 @@ class SpreadTradingServer(RpcServer):
             "ask_price": spread.ask_price,
             "bid_volume": spread.bid_volume,
             "ask_volume": spread.ask_volume,
-            "price_formula": spread.ask_volume,
-            "trading_formula": spread.ask_volume
+            "price_formula": spread.price_formula,
+            "trading_formula": spread.trading_formula
         }
         
         self.publish(EVENT_SPREAD_DATA, data)
@@ -100,6 +101,8 @@ class SpreadTradingServer(RpcServer):
 
 def main():
     """"""
+    qapp = create_qapp()
+
     # 引擎初始化
     event_engine = EventEngine()
 
@@ -117,8 +120,14 @@ def main():
     # 启动价差引擎
     spread_engine.start()
 
-    while True:
-        sleep(1)
+    # 创建主窗口
+    main_window = MainWindow(main_engine, event_engine)
+    main_window.showMaximized()
+
+    qapp.exec_()
+
+    #while True:
+    #    sleep(1)
 
 
 if __name__ == "__main__":
