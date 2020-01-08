@@ -160,6 +160,8 @@ class SpreadData:
 
         self.price_formula: str = ""
         self.trading_formula: str = ""
+        self.trading_type: str = ""
+
 
         for leg in legs:
             self.legs[leg.vt_symbol] = leg
@@ -186,7 +188,9 @@ class SpreadData:
         self.ask_price: float = 0
         self.bid_volume: float = 0
         self.ask_volume: float = 0
-        # self.spread_rate: float = 0
+        self.ask_spread_rate: float = 0
+        self.bid_spread_rate: float = 0
+
 
         self.net_pos: float = 0
         self.datetime: datetime = None
@@ -205,11 +209,20 @@ class SpreadData:
             # Calculate price
             price_multiplier = self.price_multipliers[leg.vt_symbol]
             if price_multiplier > 0:
+                self.bid_price_tmp = leg.bid_price * price_multiplier
                 self.bid_price += leg.bid_price * price_multiplier
+                self.ask_price_tmp = leg.ask_price * price_multiplier
+
                 self.ask_price += leg.ask_price * price_multiplier
+
+                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100
+                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100
+
             else:
                 self.bid_price += leg.ask_price * price_multiplier
                 self.ask_price += leg.bid_price * price_multiplier
+
+            # print(f"{price_multiplier} bid_price {self.bid_price} {leg.bid_price} {self.bid_spread_rate}, ask_price {self.ask_price} {leg.ask_price} {self.ask_spread_rate} ")
 
             # Calculate volume
             trading_multiplier = self.trading_multipliers[leg.vt_symbol]
@@ -334,6 +347,8 @@ class SpreadData:
             ask_price_1=self.ask_price,
             bid_volume_1=self.bid_volume,
             ask_volume_1=self.ask_volume,
+            bid_spread_rate=self.bid_spread_rate,
+            ask_spread_rate=self.ask_spread_rate,
             gateway_name="SPREAD"
         )
         return tick

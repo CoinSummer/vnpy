@@ -171,6 +171,7 @@ class SpreadDataEngine:
 
         for spread in self.symbol_spread_map[tick.vt_symbol]:
             spread.calculate_price()
+            # print(f"engine process tick event {spread.__dict__}")
             self.put_data_event(spread)
 
     def process_position_event(self, event: Event) -> None:
@@ -719,9 +720,10 @@ class SpreadStrategyEngine:
         """"""
         spread = event.data
         strategies = self.spread_strategy_map[spread.name]
-
+        # print(f"xxxxx  {spread.__dict__}")
         for strategy in strategies:
             if strategy.inited:
+                # print(f"engine spread_data_event {strategy.on_spread_data.__dict__}")
                 self.call_strategy_func(strategy, strategy.on_spread_data)
 
     def process_spread_pos_event(self, event: Event):
@@ -736,6 +738,7 @@ class SpreadStrategyEngine:
     def process_spread_algo_event(self, event: Event):
         """"""
         algo = event.data
+        # print(f" process spread algo {algo.spread.__dict__}")
         strategy = self.algo_strategy_map.get(algo.algoid, None)
 
         if strategy:
@@ -865,6 +868,7 @@ class SpreadStrategyEngine:
             return
 
         self.call_strategy_func(strategy, strategy.on_start)
+        # print(f"engine strategy {strategy.__dict__}")
         strategy.trading = True
 
         self.put_strategy_event(strategy)

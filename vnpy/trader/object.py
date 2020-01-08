@@ -47,6 +47,9 @@ class TickData(BaseData):
     low_price: float = 0
     pre_close: float = 0
 
+    bid_spread_rate: float = 0
+    ask_spread_rate: float = 0
+
     bid_price_1: float = 0
     bid_price_2: float = 0
     bid_price_3: float = 0
