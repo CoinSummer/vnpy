@@ -199,7 +199,7 @@ class BarGenerator:
             self.on_bar(self.bar)
 
             new_minute = True
-
+        # print(f"update tick {tick.__dict__}")
         if new_minute:
             self.bar = BarData(
                 symbol=tick.symbol,

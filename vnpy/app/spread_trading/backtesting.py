@@ -556,6 +556,7 @@ class BacktestingEngine:
         for algo in list(self.active_algos.values()):
             # Check whether limit orders can be filled.
 <<<<<<< HEAD
+<<<<<<< HEAD
             long_cross = (
                 algo.direction == Direction.LONG
                 and algo.price >= long_cross_price
@@ -567,6 +568,9 @@ class BacktestingEngine:
             )
 =======
             # print(f"algo value {algo.spread.__dict__}")
+=======
+            # print(f"algo value {algo.__dict__}")
+>>>>>>> *update) 修复spread rate 实盘无法创建algo 问题
             # print(f"[algo info]  {algo.__dict__} {cross_rate} {long_cross_price}")
             if algo.spread_rate == 0:
                 long_cross = (
@@ -619,7 +623,7 @@ class BacktestingEngine:
             else:
                 trade_price = short_cross_price
                 pos_change = -algo.volume
-            # print(f" self.datetime {self.datetime}")
+
             trade = TradeData(
                 symbol=self.spread.name,
                 exchange=Exchange.LOCAL,

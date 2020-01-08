@@ -52,12 +52,27 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
             return
 
         # Otherwise check if should take active leg
-        if self.direction == Direction.LONG:
-            if self.spread.ask_price <= self.price:
-                self.take_active_leg()
+        # print(f"on tick info {self.spread.__dict__}")
+
+        if self.spread.trading_type == "price":
+            if self.direction == Direction.LONG:
+                if self.spread.ask_price <= self.price:
+                    self.take_active_leg()
+            else:
+                if self.spread.bid_price >= self.price:
+                    self.take_active_leg()
         else:
-            if self.spread.bid_price >= self.price:
-                self.take_active_leg()
+            # print(f" 使用 rate 交易 taker")
+            """使用 spread rate 计算挂单差价"""
+            # print("spread rate 使用 taker")
+            # print(f"spread_rate {self.spread_rate} active_ask_price {active_leg.ask_price}  spread_ask_rate {self.spread.ask_spread_rate} bid_price {active_leg.bid_price} spread_bid_rate {spread.bid_spread_rate}")
+
+            if self.direction == Direction.LONG:
+                if self.spread.ask_spread_rate <= self.spread_rate:
+                    self.take_active_leg()
+            else:
+                if self.spread.bid_spread_rate >= self.spread_rate:
+                    self.take_active_leg()
 
     def on_order(self, order: OrderData):
         """"""
@@ -162,13 +177,15 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         volume: float,
         payup: float,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float
+
     ):
         """"""
         super().__init__(
             algo_engine, algoid, spread,
             direction, offset, price, volume,
-            payup, interval, lock
+            payup, interval, lock, spread_rate
         )
 
         self.cancel_interval: int = 2
@@ -321,21 +338,53 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         price_multiplier = spread.price_multipliers[
             spread.active_leg.vt_symbol
         ]
-
-        if self.direction == Direction.LONG:
-            if price_multiplier > 0:
-                quote_price = (self.price - spread.ask_price) / \
-                    price_multiplier + active_leg.ask_price
+        if self.spread.trading_type == "price":
+            # 差价使用
+            if self.direction == Direction.LONG:
+                if price_multiplier > 0:
+                    quote_price = (self.price - spread.ask_price) / \
+                        price_multiplier + active_leg.ask_price
+                else:
+                    quote_price = (self.price - spread.ask_price) / \
+                        price_multiplier + active_leg.bid_price
             else:
-                quote_price = (self.price - spread.ask_price) / \
-                    price_multiplier + active_leg.bid_price
+                ""
+                if price_multiplier > 0:
+                    quote_price = (self.price - spread.bid_price) / \
+                        price_multiplier + active_leg.ask_price
+                else:
+                    quote_price = (self.price - spread.bid_price) / \
+                        price_multiplier + active_leg.bid_price
         else:
-            if price_multiplier > 0:
-                quote_price = (self.price - spread.bid_price) / \
-                    price_multiplier + active_leg.ask_price
+            # 差价比使用
+            if self.direction == Direction.LONG:
+
+                """使用 spread rate 计算挂单差价"""
+                # print("spread rate 使用 maker")
+                # print(f"spread_rate {self.spread_rate} active_ask_price {active_leg.ask_price}  spread_ask_rate { spread.ask_spread_rate} bid_price {active_leg.bid_price} spread_bid_rate {spread.bid_spread_rate}")
+
+                if price_multiplier > 0:
+                    quote_price = ((self.spread_rate/100)*active_leg.ask_price - (spread.ask_spread_rate/100)*active_leg.ask_price) / \
+                                    price_multiplier + active_leg.ask_price
+                    print(f"active_leg {active_leg.vt_symbol} maker ask price {quote_price} LONG")
+                else:
+                    quote_price = ((self.spread_rate/100)*active_leg.ask_price - (spread.ask_spread_rate/100)*active_leg.ask_price) / \
+                                    price_multiplier + active_leg.bid_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} LONG")
+
+
             else:
-                quote_price = (self.price - spread.bid_price) / \
-                    price_multiplier + active_leg.bid_price
+                if price_multiplier > 0:
+
+                    quote_price = ((self.spread_rate/100) * active_leg.bic_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                                  price_multiplier + active_leg.ask_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
+
+                else:
+                    quote_price = ((self.spread_rate/100) * active_leg.bic_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                                  price_multiplier + active_leg.bid_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
+
 
         # Round price to pricetick of active leg
         contract = self.get_contract(active_leg.vt_symbol)    

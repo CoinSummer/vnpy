@@ -133,6 +133,10 @@ class DbTickData(Document):
 
     spread_rate: float = FloatField()
 
+    bid_spread_rate: float = FloatField()
+    ask_spread_rate: float = FloatField()
+
+
     bid_price_1: float = FloatField()
     bid_price_2: float = FloatField()
     bid_price_3: float = FloatField()

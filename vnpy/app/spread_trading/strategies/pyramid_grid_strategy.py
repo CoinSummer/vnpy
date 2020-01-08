@@ -150,6 +150,8 @@ class PyramidGridStrategy(SpreadStrategyTemplate):
         """
         Callback when algo status is updated.
         """
+        # print(f"algo is active() {algo.__dict__} {algo.is_active()}")
+
         # 若有算法全部成交，则清空算法编号缓存，等待下一轮挂出新的
         if not algo.is_active():
             if self.long_algoid == algo.algoid:

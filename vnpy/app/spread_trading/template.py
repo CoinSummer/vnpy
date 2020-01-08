@@ -496,6 +496,8 @@ class SpreadStrategyTemplate:
         if not self.trading:
             return ""
 
+        # print(f"self start_aglo info {self.spread_name, direction, offset, price,}")
+        # print(self.spread_name)
         algoid: str = self.strategy_engine.start_algo(
             self,
             self.spread_name,
@@ -509,6 +511,7 @@ class SpreadStrategyTemplate:
             lock,
         )
 
+        # print(f"start algo {algoid}")
         self.algoids.add(algoid)
 
         return algoid
@@ -643,6 +646,7 @@ class SpreadStrategyTemplate:
 
     def get_spread_tick(self) -> TickData:
         """"""
+        # print(f"tick template data {self.spread.to_tick().__dict__}")
         return self.spread.to_tick()
 
     def get_spread_pos(self) -> float:
@@ -657,6 +661,11 @@ class SpreadStrategyTemplate:
             return None
 
         return leg.tick
+
+    def get_active_leg(self):
+        for leg in self.spread.legs.values():
+            # print(f"legs {leg.__dict__}")
+            pass
 
     def get_leg_pos(self, vt_symbol: str, direction: Direction = Direction.NET) -> float:
         """"""
