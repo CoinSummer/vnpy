@@ -376,12 +376,12 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
             else:
                 if price_multiplier > 0:
 
-                    quote_price = ((self.spread_rate/100) * active_leg.bic_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                    quote_price = ((self.spread_rate/100) * active_leg.bid_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
                                   price_multiplier + active_leg.ask_price
                     print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
 
                 else:
-                    quote_price = ((self.spread_rate/100) * active_leg.bic_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                    quote_price = ((self.spread_rate/100) * active_leg.bid_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
                                   price_multiplier + active_leg.bid_price
                     print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
 

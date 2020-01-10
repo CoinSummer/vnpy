@@ -211,16 +211,25 @@ class SpreadData:
             if price_multiplier > 0:
                 self.bid_price_tmp = leg.bid_price * price_multiplier
                 self.bid_price += leg.bid_price * price_multiplier
-                self.ask_price_tmp = leg.ask_price * price_multiplier
+                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100 * price_multiplier
 
+                self.ask_price_tmp = leg.ask_price * price_multiplier
                 self.ask_price += leg.ask_price * price_multiplier
 
-                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100
-                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100
+                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100 * price_multiplier
 
             else:
+                # 检查 price_multiplier < 0 时 bid_spread_rate 结果是否符合需求
+                # self.bid_price_tmp 需要替换self.bid_price 求和数据结果 后期优化时替代
+
+                self.bid_price_tmp = leg.ask_price * price_multiplier
                 self.bid_price += leg.ask_price * price_multiplier
+                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100 * price_multiplier
+
+                self.ask_price_tmp = leg.bid_price * price_multiplier
                 self.ask_price += leg.bid_price * price_multiplier
+                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100 * price_multiplier
+
 
             # print(f"{price_multiplier} bid_price {self.bid_price} {leg.bid_price} {self.bid_spread_rate}, ask_price {self.ask_price} {leg.ask_price} {self.ask_spread_rate} ")
 
@@ -417,8 +426,9 @@ def load_bar_data(
                 price_multiplier = spread.price_multipliers[leg.vt_symbol]
                 spread_tmp = price_multiplier * leg_bar.close_price
                 spread_price += price_multiplier * leg_bar.close_price
-                spread_rate = spread_price / abs(spread_tmp) * 100
+                spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
+                print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
             else:
                 spread_available = False
 
