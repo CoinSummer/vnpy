@@ -772,9 +772,9 @@ class BitmexWebsocketApi(WebsocketClient):
                                   gateway_name=self.gateway_name)
             self.accounts[accountid] = account
 
-        account.balance = round(d.get("marginBalance", account.balance) / 10**8, 7)
-        account.available = round(d.get("availableMargin", account.available) / 10**8, 7)
-        account.frozen = round((account.balance - account.available), 7)
+        account.balance = round(d.get("marginBalance", account.balance*10**8) / 10**8, 8)
+        account.available = round(d.get("availableMargin", account.available*10**8) / 10**8, 8)
+        account.frozen = round(d.get("maintMargin", account.frozen*10**8) / 10**8, 8)
 
         self.gateway.on_account(copy(account))
 
