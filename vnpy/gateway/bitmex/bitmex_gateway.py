@@ -765,7 +765,6 @@ class BitmexWebsocketApi(WebsocketClient):
 
     def on_account(self, d):
         """"""
-        print(d)
         accountid = str(d["account"])
         account = self.accounts.get(accountid, None)
         if not account:
