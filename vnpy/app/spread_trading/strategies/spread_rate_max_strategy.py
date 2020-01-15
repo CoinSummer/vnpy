@@ -132,10 +132,15 @@ class SpreadRateMaxStrategy(SpreadStrategyTemplate):
 
         if self.test_type == 1:
             time_now = bar.datetime
+            print(f"in bar date")
         else:
             time_now = datetime.now()
+            print(f"in time_now")
 
         date_parse = datetime.strptime(self.end_date, '%Y-%m-%d')
+
+        self.active_ask_price = self.spread.active_leg.ask_price
+        print(self.active_ask_price)
 
         """计算short_price 价格  使用 self.short_rate * active_legs.price"""
         if (time_now <= (date_parse - timedelta(days=self.end_days))):
@@ -144,24 +149,26 @@ class SpreadRateMaxStrategy(SpreadStrategyTemplate):
             if not self.spread_pos:
                 self.stop_close_algos()
                 if not self.short_algoid:
-                    # print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
+                    print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
                     self.short_algoid = self.start_short_algo(
                         self.active_ask_price * (self.short_rate / 100), self.trade_pos, self.payup, self.interval,
                         self.short_rate
                     )
-            elif self.spread_pos < 0 and (self.max_pos * -1) >= self.spread_pos:
+            elif self.spread_pos < 0 and abs(self.max_pos) >= abs(self.spread_pos):
+                # 有仓位没到最大值
                 self.stop_close_algos()
                 if not self.short_algoid:
-                    # print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
+                    print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
                     self.short_algoid = self.start_short_algo(
                         self.active_ask_price * (self.short_rate / 100), self.trade_pos, self.payup, self.interval,
                         self.short_rate
                     )
             # Short position 只做收敛
-            elif self.spread_pos < 0 and (self.max_pos * -1) <= self.spread_pos:
+            elif self.spread_pos < 0 and abs(self.max_pos) <= abs(self.spread_pos):
                 self.stop_open_algos()
                 # Start cover close algo
-                # print(f"cover_price {self.active_ask_price * (self.cover_rate / 100)}")
+                print( self.max_pos, self.spread_pos, abs(self.max_pos) >= abs(self.spread_pos))
+                print(f"cover_price {self.active_ask_price, self.cover_rate} {self.active_ask_price * (self.cover_rate / 100)}")
                 """计算cover_price 使用self.cover_rate * active_leg.price"""
                 if not self.cover_algoid:
                     self.cover_algoid = self.start_long_algo(
