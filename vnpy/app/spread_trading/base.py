@@ -211,12 +211,12 @@ class SpreadData:
             if price_multiplier > 0:
                 self.bid_price_tmp = leg.bid_price * price_multiplier
                 self.bid_price += leg.bid_price * price_multiplier
-                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100 * price_multiplier
+                self.bid_spread_rate = self.bid_price / self.bid_price_tmp * 100 * price_multiplier
 
                 self.ask_price_tmp = leg.ask_price * price_multiplier
                 self.ask_price += leg.ask_price * price_multiplier
 
-                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100 * price_multiplier
+                self.ask_spread_rate = self.ask_price / self.ask_price_tmp * 100 * price_multiplier
 
             else:
                 # 检查 price_multiplier < 0 时 bid_spread_rate 结果是否符合需求
@@ -224,11 +224,11 @@ class SpreadData:
 
                 self.bid_price_tmp = leg.ask_price * price_multiplier
                 self.bid_price += leg.ask_price * price_multiplier
-                self.bid_spread_rate = self.bid_price / abs(self.bid_price_tmp) * 100 * price_multiplier
+                self.bid_spread_rate = self.bid_price / self.bid_price_tmp * 100 * price_multiplier
 
                 self.ask_price_tmp = leg.bid_price * price_multiplier
                 self.ask_price += leg.bid_price * price_multiplier
-                self.ask_spread_rate = self.ask_price / abs(self.ask_price_tmp) * 100 * price_multiplier
+                self.ask_spread_rate = self.ask_price / self.ask_price_tmp * 100 * price_multiplier
 
 
             # print(f"{price_multiplier} bid_price {self.bid_price} {leg.bid_price} {self.bid_spread_rate}, ask_price {self.ask_price} {leg.ask_price} {self.ask_spread_rate} ")
@@ -432,6 +432,7 @@ def load_bar_data(
                 spread_price += price_multiplier * leg_bar.close_price
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 spread_value += abs(price_multiplier) * leg_bar.close_price
 =======
                 spread_rate = spread_price / abs(spread_tmp) * 100
@@ -439,6 +440,9 @@ def load_bar_data(
 >>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
 =======
                 spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
+=======
+                spread_rate = spread_price / spread_tmp * 100 * price_multiplier
+>>>>>>> *update) 添加spread_rate muliterprice 计算
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
 <<<<<<< HEAD
                 print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
