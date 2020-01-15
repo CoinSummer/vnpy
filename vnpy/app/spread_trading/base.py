@@ -428,6 +428,7 @@ def load_bar_data(
                 spread_price += price_multiplier * leg_bar.close_price
                 spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
+                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
             else:
                 spread_available = False
 
