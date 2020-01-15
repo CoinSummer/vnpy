@@ -913,72 +913,7 @@ class BacktestingEngine:
             results.append((setting, target_value, {}))
 
         return results
-    #
-    # def run_optimization(
-    #     self,
-    #     class_name: str,
-    #     # vt_symbol: str,
-    #     spread: SpreadData,
-    #     interval: str,
-    #     start: datetime,
-    #     end: datetime,
-    #     rate: float,
-    #     slippage: float,
-    #     size: int,
-    #     pricetick: float,
-    #     capital: int,
-    #     inverse: bool,
-    #     optimization_setting: OptimizationSetting,
-    #     use_ga: bool
-    # ):
-    #     """"""
-    #     if use_ga:
-    #         self.write_log("开始遗传算法参数优化")
-    #     else:
-    #         self.write_log("开始多进程参数优化")
-    #
-    #     self.result_values = None
-    #
-    #     engine = self.backtesting_engine
-    #     engine.clear_data()
-    #
-    #     engine.set_parameters(
-    #         spread=spread,
-    #         interval=interval,
-    #         start=start,
-    #         end=end,
-    #         rate=rate,
-    #         slippage=slippage,
-    #         size=size,
-    #         pricetick=pricetick,
-    #         capital=capital,
-    #         # inverse=inverse
-    #     )
-    #
-    #     strategy_class = self.classes[class_name]
-    #     engine.add_strategy(
-    #         strategy_class,
-    #         {}
-    #     )
-    #
-    #     if use_ga:
-    #         self.result_values = engine.run_ga_optimization(
-    #             optimization_setting,
-    #             output=False
-    #         )
-    #     else:
-    #         self.result_values = engine.run_optimization(
-    #             optimization_setting,
-    #             output=False
-    #         )
-    #
-    #     # Clear thread object handler.
-    #     self.thread = None
-    #     self.write_log("多进程参数优化完成")
-    #
-    #     # Put optimization done event
-    #     event = Event(EVENT_BACKTESTER_OPTIMIZATION_FINISHED)
-    #     self.event_engine.put(event)
+
 
     def start_optimization(
         self,
