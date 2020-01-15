@@ -78,7 +78,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
             strategy_engine, strategy_name, spread, setting
         )
         self.active_ask_price = self.spread.active_leg.ask_price
-        self.bg = BarGenerator(self.on_spread_bar, 10, self.on_10min_bar)
+        self.bg = BarGenerator(self.on_spread_bar, 1, self.on_10min_bar)
 
     def on_init(self):
         """
@@ -143,6 +143,8 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
                 self.stop_close_algos()
                 if not self.short_algoid:
                     # print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
+                    print(f"cover_price  start {self.active_ask_price * (self.cover_rate / 100)}")
+
                     self.short_algoid = self.start_short_algo(
                         self.active_ask_price * (self.short_rate / 100), self.max_pos, self.payup, self.interval,
                         self.short_rate
@@ -152,7 +154,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
             elif self.spread_pos < 0:
                 self.stop_open_algos()
                 # Start cover close algo
-                # print(f"cover_price {self.active_ask_price * (self.cover_rate / 100)}")
+                print(f"cover_price {self.active_ask_price}{self.active_ask_price * (self.cover_rate / 100)}")
                 """计算cover_price 使用self.cover_rate * active_leg.price"""
                 if not self.cover_algoid:
                     self.cover_algoid = self.start_long_algo(
