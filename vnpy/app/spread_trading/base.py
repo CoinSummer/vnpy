@@ -445,11 +445,14 @@ def load_bar_data(
 >>>>>>> *update) 添加spread_rate muliterprice 计算
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
 <<<<<<< HEAD
+<<<<<<< HEAD
                 print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
 >>>>>>> *bugfix)  修复 algo bic_price 书写错误 更改为 bid_price添加多方向spread_rate 计算
 =======
                 # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
 >>>>>>> *update) add spread max strategy
+=======
+>>>>>>> test in windows
             else:
                 spread_available = False
 
