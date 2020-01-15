@@ -13,7 +13,7 @@ from vnpy.trader.utility import BarGenerator, ArrayManager
 from datetime import datetime, timedelta, date
 import calendar
 
-class SpreadRateStrategy(SpreadStrategyTemplate):
+class SpreadRateMaxStrategy(SpreadStrategyTemplate):
     """
     在每月固定时间执行策略
     只远期开空，近期开多
@@ -29,6 +29,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
     author = "wwdd"
 
     max_pos = 100.0
+    trade_pos = 10.0
     payup = 10.0
     interval = 5
     start_days = 3  # 每月第x天开始执行策略
@@ -48,6 +49,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
 
     parameters = [
         "max_pos",
+        "trade_pos",
         "payup",
         "interval",
         "start_days",
@@ -78,7 +80,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
             strategy_engine, strategy_name, spread, setting
         )
         self.active_ask_price = self.spread.active_leg.ask_price
-        self.bg = BarGenerator(self.on_spread_bar, 10, self.on_10min_bar)
+        self.bg = BarGenerator(self.on_spread_bar, 1, self.on_10min_bar)
 
     def on_init(self):
         """
@@ -144,12 +146,19 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
                 if not self.short_algoid:
                     # print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
                     self.short_algoid = self.start_short_algo(
-                        self.active_ask_price * (self.short_rate / 100), self.max_pos, self.payup, self.interval,
+                        self.active_ask_price * (self.short_rate / 100), self.trade_pos, self.payup, self.interval,
                         self.short_rate
                     )
-
-            # Short position
-            elif self.spread_pos < 0:
+            elif self.spread_pos < 0 and (self.max_pos * -1) >= self.spread_pos:
+                self.stop_close_algos()
+                if not self.short_algoid:
+                    # print(f"short_price {self.active_ask_price * (self.short_rate / 100)}")
+                    self.short_algoid = self.start_short_algo(
+                        self.active_ask_price * (self.short_rate / 100), self.trade_pos, self.payup, self.interval,
+                        self.short_rate
+                    )
+            # Short position 只做收敛
+            elif self.spread_pos < 0 and (self.max_pos * -1) <= self.spread_pos:
                 self.stop_open_algos()
                 # Start cover close algo
                 # print(f"cover_price {self.active_ask_price * (self.cover_rate / 100)}")
@@ -159,6 +168,7 @@ class SpreadRateStrategy(SpreadStrategyTemplate):
                         self.active_ask_price * (self.cover_rate / 100), abs(
                             self.spread_pos), self.payup, self.interval, self.cover_rate
                     )
+
         else:
             if self.spread_pos < 0:
                 # 当超出策略执行时间，且有仓位时。 仅仅平仓。

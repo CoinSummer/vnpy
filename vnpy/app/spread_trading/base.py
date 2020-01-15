@@ -440,8 +440,12 @@ def load_bar_data(
 =======
                 spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
+<<<<<<< HEAD
                 print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
 >>>>>>> *bugfix)  修复 algo bic_price 书写错误 更改为 bid_price添加多方向spread_rate 计算
+=======
+                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
+>>>>>>> *update) add spread max strategy
             else:
                 spread_available = False
 
