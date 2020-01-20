@@ -2,6 +2,8 @@ from typing import Dict, List
 from datetime import datetime
 from enum import Enum
 from functools import lru_cache
+import heapq
+
 
 from vnpy.trader.object import (
     TickData, PositionData, TradeData, ContractData, BarData
@@ -372,6 +374,48 @@ class SpreadData:
         leg = self.legs[vt_symbol]
         return leg.size
 
+class MidFinder:
+
+    def __init__(self):
+        self.min_heap = []
+        self.max_heap = []
+        self.count = 0
+
+    def insert(self, num):
+        # 当前是奇数的时候，直接"最小堆" -> "最大堆"，就可以了
+        # 此时"最小堆" 与 "最大堆" 的元素数组是相等的
+
+        # 当前是偶数的时候，"最小堆" -> "最大堆"以后，最终我们要让"最小堆"多一个元素
+        # 所以应该让 "最大堆" 拿出一个元素给 "最小堆"
+
+        heapq.heappush(self.min_heap, num)
+        temp = heapq.heappop(self.min_heap)
+        heapq.heappush(self.max_heap, -temp)
+        if self.count & 1 == 0:
+            temp = -heapq.heappop(self.max_heap)
+            heapq.heappush(self.min_heap, temp)
+        self.count += 1
+        # print(f" min {self.min_heap}")
+        # print(f"max {self.max_heap}")
+    def get_heap_all(self):
+        return self.min_heap + self.max_heap
+    def get_lower_quartile(self):
+        pass
+    def getMedian(self):
+        """
+        :rtype: float
+        """
+        if self.count & 1 == 1:
+            mid = self.min_heap[0]
+        else:
+            mid = (self.min_heap[0] + (-self.max_heap[0])) / 2
+        return mid
+
+    def clear(self):
+        self.min_heap = []
+        self.max_heap = []
+        self.count = 0
+
 
 def calculate_inverse_volume(
     original_volume: float,
@@ -428,7 +472,7 @@ def load_bar_data(
                 spread_price += price_multiplier * leg_bar.close_price
                 spread_rate = spread_price / spread_tmp * 100 * price_multiplier
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
-                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
+                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
             else:
                 spread_available = False
 

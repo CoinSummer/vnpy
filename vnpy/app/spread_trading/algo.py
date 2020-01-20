@@ -7,6 +7,9 @@ from vnpy.trader.utility import round_to
 from .template import SpreadAlgoTemplate
 from .base import SpreadData
 
+import numpy as np
+import heapq
+
 
 class SpreadTakerAlgo(SpreadAlgoTemplate):
     """"""
@@ -35,6 +38,30 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
         self.cancel_interval: int = 2
         self.timer_count: int = 0
+        self.spread_datas = []
+        self.bid_spread_datas = []
+        self.ask_spread_datas = []
+
+    def cal_std_stream(self, data):
+
+        """绝对中位差计算上下限 过滤异常数据"""
+
+        heap = MidFinder()
+        for d in data:
+            heap.insert(d)
+        median = np.float64(heap.getMedian())
+        b = 1.4826
+        mad_base = np.abs(data - median)
+
+        mad_heap = MidFinder()
+        for x in mad_base:
+            mad_heap.insert(x)
+        mad = np.float64(mad_heap.getMedian())
+
+        lower_limit = median - (1.5 * b * mad)
+        upper_limit = median + (1.5 * b * mad)
+
+        return [lower_limit, upper_limit]
 
     def on_tick(self, tick: TickData):
         """"""
@@ -53,13 +80,32 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
         # Otherwise check if should take active leg
         # print(f"on tick info {self.spread.__dict__}")
-
         if self.spread.trading_type == "price":
+
+
             if self.direction == Direction.LONG:
-                if self.spread.ask_price <= self.price:
+                if len(self.spread_datas) > 17:
+                    self.ask_spread_datas.pop(0)
+                    self.ask_spread_datas.append(self.spread.ask_price)
+                else:
+                    self.ask_spread_datas.append(self.spread.ask_price)
+
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+
+                if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
-                if self.spread.bid_price >= self.price:
+                if len(self.spread_datas) > 17:
+                    self.bid_spread_datas.pop(0)
+                    self.bid_spread_datas.append(self.spread.bid_price)
+                else:
+                    self.bid_spread_datas.append(self.spread.bid_price)
+
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                cal_spread_limit = self.cal_std_stream(self.bid_spread_datas)
+
+                if self.spread.bid_price >= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
         else:
             # print(f" 使用 rate 交易 taker")
@@ -68,10 +114,27 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
             # print(f"spread_rate {self.spread_rate} active_ask_price {active_leg.ask_price}  spread_ask_rate {self.spread.ask_spread_rate} bid_price {active_leg.bid_price} spread_bid_rate {spread.bid_spread_rate}")
 
             if self.direction == Direction.LONG:
-                if self.spread.ask_spread_rate <= self.spread_rate:
+
+                if len(self.ask_spread_datas) > 17:
+                    self.ask_spread_datas.pop(0)
+                    self.ask_spread_datas.append(self.spread.ask_spread_rate)
+                else:
+                    self.aks_spread_datas.append(self.spread.ask_spread_rate)
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+
+                if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
-                if self.spread.bid_spread_rate >= self.spread_rate:
+                if len(self.spread_datas) > 17:
+                    self.bid_spread_datas.pop(0)
+                    self.bid_spread_datas.append(self.spread.bid_spread_rate)
+                else:
+                    self.bid_spread_datas.append(self.spread.bid_spread_rate)
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+
+                if self.spread.bid_spread_rate >= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1] ):
                     self.take_active_leg()
 
     def on_order(self, order: OrderData):
@@ -333,7 +396,7 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         # Localize object
         spread = self.spread
         active_leg = spread.active_leg
-        
+
         # Calculate active leg quote price
         price_multiplier = spread.price_multipliers[
             spread.active_leg.vt_symbol
@@ -387,7 +450,61 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
 
 
         # Round price to pricetick of active leg
-        contract = self.get_contract(active_leg.vt_symbol)    
+        contract = self.get_contract(active_leg.vt_symbol)
         quote_price = round_to(quote_price, contract.pricetick)
 
         return quote_price
+
+class MidFinder:
+
+    def __init__(self):
+        self.min_heap = []
+        self.max_heap = []
+        self.count = 0
+
+    def insert(self, num):
+        """
+        :type num: int
+        :rtype: void
+        """
+        # 当前是奇数的时候，直接"最小堆" -> "最大堆"，就可以了
+        # 此时"最小堆" 与 "最大堆" 的元素数组是相等的
+
+        # 当前是偶数的时候，"最小堆" -> "最大堆"以后，最终我们要让"最小堆"多一个元素
+        # 所以应该让 "最大堆" 拿出一个元素给 "最小堆"
+
+        heapq.heappush(self.min_heap, num)
+        temp = heapq.heappop(self.min_heap)
+        heapq.heappush(self.max_heap, -temp)
+        if self.count & 1 == 0:
+            temp = -heapq.heappop(self.max_heap)
+            heapq.heappush(self.min_heap, temp)
+        self.count += 1
+        # print(f" min {self.min_heap}")
+        # print(f"max {self.max_heap}")
+    def get_heap_all(self):
+        return self.min_heap + self.max_heap
+    def get_lower_quartile(self):
+        pass
+    def getMedian(self):
+        """
+        :rtype: float
+        """
+        if self.count & 1 == 1:
+            mid = self.min_heap[0]
+        else:
+            mid = (self.min_heap[0] + (-self.max_heap[0])) / 2
+        #
+        # if self.count & 1 == 1:
+        #     mad_mid = np.abs(self.min_heap - np.float64(mid))[0]
+        # else:
+        #     mad_mid = ( np.abs(self.min_heap - np.float64(mid))[0] + (-np.abs(self.max_heap - np.float64(mid))[0])) / 2
+        #
+        #
+        # print(f"cal mad_mid {mad_mid}")
+        return mid
+
+    def clear(self):
+        self.min_heap = []
+        self.max_heap = []
+        self.count = 0
