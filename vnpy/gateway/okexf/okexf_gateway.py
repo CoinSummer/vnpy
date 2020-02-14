@@ -13,6 +13,7 @@ from copy import copy
 from datetime import datetime, timedelta
 from threading import Lock
 from urllib.parse import urlencode
+from typing import Dict
 
 from requests import ConnectionError
 
@@ -42,7 +43,7 @@ from vnpy.trader.object import (
     HistoryRequest
 )
 REST_HOST = "https://www.okex.com"
-WEBSOCKET_HOST = "wss://real.okex.com:10442/ws/v3"
+WEBSOCKET_HOST = "wss://real.okex.com:8443/ws/v3"
 
 STATUS_OKEXF2VT = {
     "0": Status.NOTTRADED,
@@ -370,7 +371,6 @@ class OkexfRestApi(RestClient):
 
     def on_query_account(self, data, request):
         """"""
-
         for currency, d in data["info"].items():
             account = AccountData(
                 accountid=currency.upper(),
@@ -596,7 +596,7 @@ class OkexfWebsocketApi(WebsocketClient):
 
     def __init__(self, gateway):
         """"""
-        super(OkexfWebsocketApi, self).__init__()
+        super().__init__()
         self.ping_interval = 20     # OKEX use 30 seconds for ping
 
         self.gateway = gateway
@@ -609,6 +609,7 @@ class OkexfWebsocketApi(WebsocketClient):
         self.trade_count = 10000
         self.connect_time = 0
 
+        self.subscribed: Dict[str, SubscribeRequest] = {}
         self.callbacks = {}
         self.ticks = {}
 
@@ -637,6 +638,8 @@ class OkexfWebsocketApi(WebsocketClient):
         """
         Subscribe to tick data upate.
         """
+        self.subscribed[req.vt_symbol] = req
+
         tick = TickData(
             symbol=req.symbol,
             exchange=req.exchange,
@@ -769,6 +772,9 @@ class OkexfWebsocketApi(WebsocketClient):
         if success:
             self.gateway.write_log("Websocket API登录成功")
             self.subscribe_topic()
+
+            for req in list(self.subscribed.values()):
+                self.subscribe(req)
         else:
             self.gateway.write_log("Websocket API登录失败")
 
@@ -779,7 +785,12 @@ class OkexfWebsocketApi(WebsocketClient):
         if not tick:
             return
 
-        tick.last_price = float(d["last"])
+        # Filter last price with 0 value
+        last_price = float(d["last"])
+        if not last_price:
+            return
+
+        tick.last_price = last_price
         tick.high_price = float(d["high_24h"])
         tick.low_price = float(d["low_24h"])
         tick.volume = float(d["volume_24h"])
@@ -867,10 +878,10 @@ class OkexfWebsocketApi(WebsocketClient):
             symbol=d["instrument_id"],
             exchange=Exchange.OKEX,
             direction=Direction.LONG,
-            volume=d["long_qty"],
+            volume=int(d["long_qty"]),
             frozen=float(d["long_qty"]) - float(d["long_avail_qty"]),
-            price=d["long_avg_cost"],
-            pnl=d["realised_pnl"],
+            price=float(d["long_avg_cost"]),
+            pnl=float(d["realised_pnl"]),
             gateway_name=self.gateway_name,
         )
         self.gateway.on_position(pos)
@@ -879,10 +890,10 @@ class OkexfWebsocketApi(WebsocketClient):
             symbol=d["instrument_id"],
             exchange=Exchange.OKEX,
             direction=Direction.SHORT,
-            volume=d["short_qty"],
+            volume=int(d["short_qty"]),
             frozen=float(d["short_qty"]) - float(d["short_avail_qty"]),
-            price=d["short_avg_cost"],
-            pnl=d["realised_pnl"],
+            price=float(d["short_avg_cost"]),
+            pnl=float(d["realised_pnl"]),
             gateway_name=self.gateway_name,
         )
         self.gateway.on_position(pos)

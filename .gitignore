@@ -1,5 +1,6 @@
 # Python
 *.pyc
+*.pyo
 *.egg-info/
 
 # Jupyter
@@ -33,4 +34,8 @@ _static
 _templates
 
 # Misc
+<<<<<<< HEAD
 .DS_Store
+=======
+.DS_Store
+>>>>>>> upstream/dev
