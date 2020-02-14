@@ -305,12 +305,12 @@ class RpcClient:
 
         while self.__active:
             if not self.__socket_sub.poll(pull_tolerance):
+                print(pull_tolerance)
                 self._on_unexpected_disconnected()
                 continue
 
             # Receive data from subscribe socket
             topic, data = self.__socket_sub.recv_pyobj(flags=NOBLOCK)
-
             if topic == KEEP_ALIVE_TOPIC:
                 self._last_received_ping = data
             else:

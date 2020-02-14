@@ -118,4 +118,5 @@ class RpcEngine(BaseEngine):
         """"""
         log = LogData(msg=msg, gateway_name=APP_NAME)
         event = Event(EVENT_RPC_LOG, log)
+        print(f"in engine {event.__dict__}")
         self.event_engine.put(event)

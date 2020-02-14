@@ -117,8 +117,8 @@ class BacktestingEngine:
         self.slippage = 0
         self.size = 1
         self.pricetick = 0
-        # self.capital = 1_000_000
-        self.capital = 1000
+        self.capital = 1_000_000
+        # self.capital = 1000
         self.mode = BacktestingMode.BAR
         self.inverse = False
 

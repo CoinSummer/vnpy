@@ -26,6 +26,7 @@ from vnpy.gateway.huobi import HuobiGateway
 from vnpy.gateway.bitfinex import BitfinexGateway
 from vnpy.gateway.onetoken import OnetokenGateway
 from vnpy.gateway.okexf import OkexfGateway
+from vnpy.gateway.okexs import OkexsGateway
 #from vnpy.gateway.xtp import XtpGateway
 from vnpy.gateway.hbdm import HbdmGateway
 from vnpy.gateway.coinbase import CoinbaseGateway
@@ -65,10 +66,12 @@ def main():
     # main_engine.add_gateway(BitfinexGateway)
     # main_engine.add_gateway(OnetokenGateway)
     main_engine.add_gateway(OkexfGateway)
+    main_engine.add_gateway(OkexsGateway)
+
     main_engine.add_gateway(HbdmGateway)
     main_engine.add_gateway(CoinbaseGateway)
 
-   # main_engine.add_app(CtaStrategyApp)
+    main_engine.add_app(CtaStrategyApp)
     main_engine.add_app(CtaBacktesterApp)
     main_engine.add_app(CsvLoaderApp)
     main_engine.add_app(AlgoTradingApp)
