@@ -88,6 +88,7 @@ class RsiMomentumStrategy(CtaTemplate):
             return
 
         atr_array = am.atr(self.atr_window, array=True)
+        print(atr_array)
         self.atr_value = atr_array[-1]
         self.atr_ma = atr_array[-self.atr_ma_window:].mean()
         self.rsi_value = am.rsi(self.rsi_window)

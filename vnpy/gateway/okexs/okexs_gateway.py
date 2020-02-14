@@ -26,7 +26,8 @@ from vnpy.trader.object import (AccountData, BarData, CancelRequest, ContractDat
 
 _ = lambda x: x  # noqa
 REST_HOST = "https://www.okex.com"
-WEBSOCKET_HOST = "wss://real.okex.com:10442/ws/v3"
+# WEBSOCKET_HOST = "wss://real.okex.com:10442/ws/v3"
+WEBSOCKET_HOST = "wss://real.okex.com:8443/ws/v3"
 
 STATUS_OKEXS2VT = {
     "0": Status.NOTTRADED,
@@ -716,6 +717,10 @@ class OkexsWebsocketApi(WebsocketClient):
         symbol = d["instrument_id"]
         tick = self.ticks.get(symbol, None)
         if not tick:
+            return
+        # Filter last price with 0 value
+        last_price = float(d["last"])
+        if not last_price:
             return
 
         tick.last_price = float(d["last"])

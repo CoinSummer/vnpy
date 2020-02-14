@@ -490,6 +490,8 @@ class MidFinder:
         """
         :rtype: float
         """
+        if len(self.min_heap) == 0:
+            return 0
         if self.count & 1 == 1:
             mid = self.min_heap[0]
         else:
