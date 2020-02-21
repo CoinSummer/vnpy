@@ -460,10 +460,15 @@ def load_bar_data(
     for dt in bars.keys():
         spread_price = 0
 <<<<<<< HEAD
+<<<<<<< HEAD
         spread_value = 0
 =======
         spread_rate = 0.0
 >>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
+=======
+        spread_rate = 0.0
+        spread_value = 0
+>>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
         spread_available = True
 
         for leg in spread.legs.values():
@@ -477,6 +482,7 @@ def load_bar_data(
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 spread_value += abs(price_multiplier) * leg_bar.close_price
 =======
                 spread_rate = spread_price / abs(spread_tmp) * 100
@@ -485,9 +491,12 @@ def load_bar_data(
 =======
                 spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
 =======
+=======
+>>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
                 spread_rate = spread_price / spread_tmp * 100 * price_multiplier
 >>>>>>> *update) 添加spread_rate muliterprice 计算
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -505,6 +514,10 @@ def load_bar_data(
 =======
                 # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
 >>>>>>> *update) 添加spread 极值过滤方法
+=======
+                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
+                spread_value += abs(price_multiplier) * leg_bar.close_price
+>>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
             else:
                 spread_available = False
 
@@ -525,11 +538,17 @@ def load_bar_data(
                 gateway_name="SPREAD",
             )
 <<<<<<< HEAD
+<<<<<<< HEAD
             spread_bar.value = spread_value
 =======
 
             # print(f"ljlsajf {spread_bar}")
 >>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
+=======
+
+            # print(f"ljlsajf {spread_bar}")
+            spread_bar.value = spread_value
+>>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
             spread_bars.append(spread_bar)
 
     return spread_bars

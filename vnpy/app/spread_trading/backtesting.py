@@ -28,7 +28,8 @@ from time import time
 import multiprocessing
 import random
 from vnpy.trader.database import database_manager
-
+import numba
+from numba.typed import List
 
 sns.set_style("whitegrid")
 
@@ -154,7 +155,6 @@ class BacktestingEngine:
         self.spread_datas = []
         self.queue = Queue(11)
 
-        self.heap = MidFinder()
 
     def output(self, msg):
         """
@@ -544,78 +544,25 @@ class BacktestingEngine:
 
         self.update_daily_close(tick.last_price)
 
-    def cal_filter(self, arr):
+
+    # @numba.jit(nopython=True)
+    # @numba.jit(debug=True)
+    # @numba.jit("float64(float64[:])", forceobj=True, nopython=True)
+    # @staticmethod
+    # @numba.jit("float64(float64[:])", forceobj=True, nopython=True,fastmath=True)
+    @staticmethod
+    @numba.jit
+    def cal_qurtile(arr):
         """
         计算四分位上下限 过滤异常差价波动
         return [上限， 下限]
         """
-        # print(f"arr {arr} len {len(arr)}")
-        if len(arr) < 2:
-            return [0,0]
-        # q1 = np.quantile(arr, 0.25, interpolation='lower')  # 下四分位数
-        # q3 = np.quantile(arr, 0.75, interpolation='higher')  # 上四分位数
-
         q = np.quantile(arr, [0.25, 0.75])
         q3 = q[1]
         q1 = q[0]
         iqr = q3 - q1
+        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
 
-        return [ (q1 - 1.5*iqr), (q3 - 1.5*iqr)] # 下限 上线
-
-    def cal_std_stream(self, data):
-
-        """绝对中位差计算上下限"""
-        start = datetime.now()
-
-        heap = MidFinder()
-        for d in data:
-            heap.insert(d)
-        median = np.float64(heap.getMedian())
-        end = datetime.now()
-
-        b = 1.4826
-
-        m_start = datetime.now()
-        mad_base = np.abs(data - median)
-        m_end = datetime.now()
-        # print(f" abs计算用时 {round((m_end-m_start).microseconds,5)}ms")
-
-        b_start = datetime.now()
-        mad_heap = MidFinder()
-        f_start = datetime.now()
-        for x in mad_base:
-            o_start = datetime.now()
-            mad_heap.insert(x)
-            o_end = datetime.now()
-        f_end = datetime.now()
-        mad = np.float64(mad_heap.getMedian())
-        b_end = datetime.now()
-        # print(f"首次中位数 {round((end-start).microseconds,5)}ms , abs 计算{round((m_end-m_start).microseconds,5)}ms, "
-        #       f"二次中位数计算 {round((b_end-b_start).microseconds,5)}ms mad{mad}, 循环用时 {round((f_end-f_start).microseconds,5)}ms ")
-        lower_limit = median - (1.5 * b * mad)
-        upper_limit = median + (1.5 * b * mad)
-        return [lower_limit, upper_limit]
-
-    def cal_std(self, data):
-
-        """绝对中位差计算上下限"""
-        median = np.median(data)
-
-        b = 1.4826  # 这个值应该是看需求加的，有点类似加大波动范围之类的
-        # b = 1.2  # 这个值应该是看需求加的，有点类似加大波动范围之类的
-        mad = b * np.median(np.abs(data - median))
-
-        lower_limit = median - (3 * b * mad)
-        upper_limit = median + (3 * b * mad)
-        return [lower_limit, upper_limit]
-
-    def cal_three_sigma(self,data):
-        mean = np.mean(data)
-        std = np.std(data)
-        # 左右3 个标准差
-        lower = mean - (3 * std)
-        upper = mean + (3 * std)
-        return [lower, upper]
 
     def cross_algo(self):
         """
@@ -645,54 +592,18 @@ class BacktestingEngine:
         #     self.queue.put(cross_rate)
 
 
-        # # 使用堆计算中位数
-        # h_start = datetime.now()
-        #
-        # self.heap.insert(cross_rate)
-        # d = self.heap.getMedian()
-        # h_end= datetime.now()
-        # if len(self.heap.max_heap) + len(self.heap.min_heap) > 100:
-        #     self.heap.clear()
-        # h_cost = (h_end - h_start)
-        # print(f" 堆计算四分位 {d} 当前cross_rate {cross_rate}  用时 {round(h_cost.microseconds,5)}ms len{len(self.heap.max_heap) + len(self.heap.min_heap)}")
 
-        # # 使用四分位上下限计算
+        # 使用四分位上下限计算
         # c_start = datetime.now()
+        # result = self.cal_filter(self.spread_datas)
         # cal_spread_limit = self.cal_filter(self.spread_datas)
-        # # cal_spread_limit = self.cal_filter(list(self.queue.queue))
-        # # # cal_long_limit = self.cal_filter(self.spread_datas["long_cross_price"])
-        # # # cal_short_limit = self.cal_filter(self.spread_datas["short_cross_price"])
-        # # cal_spread_limit = self.cal_std(self.spread_datas)
+        cal_spread_limit = self.cal_qurtile(np.array(self.spread_datas))
+
+
         # c_end = datetime.now()
         # c_cost = (c_end - c_start)
         # # print(f"{self.bar.datetime}数据 {self.spread_datas} 中位差 {cal_spread_limit}  当前cross_rate {cross_rate}")
         # print(f"{self.bar.datetime}用时 {round(c_cost.microseconds, 5)}ms  四分位计算 {cal_spread_limit}  当前cross_rate {cross_rate} ")
-        #
-
-        # 使用流 中位数绝对值
-
-        x_start = datetime.now()
-        x_cal_spread_limit = self.cal_std_stream(self.spread_datas)
-        x_end = datetime.now()
-        x_cost = (x_end - x_start)
-        # print(f"{self.bar.datetime}用时 {round(x_cost.microseconds, 5)}ms 流中位数绝对值计算 {x_cal_spread_limit}  当前cross_rate {cross_rate} ")
-
-        # # 使用中位数绝对值偏差
-        # m_start = datetime.now()
-        # m_cal_spread_limit = self.cal_std(self.spread_datas)
-        # m_end = datetime.now()
-        # m_cost = (m_end - m_start)
-        # # print(f"{self.bar.datetime}数据 {self.spread_datas} 中位差 {cal_spread_limit}  当前cross_rate {cross_rate}")
-        # print(f"{self.bar.datetime}数据  中位数绝对值计算 {m_cal_spread_limit}  当前cross_rate {cross_rate} 用时 {round(m_cost.microseconds, 5)}ms")
-        #
-        # # 使用3 sigmal
-        # s_start = datetime.now()
-        # s_cal_spread_limit = self.cal_three_sigma(self.spread_datas)
-        # s_end = datetime.now()
-        # s_cost = s_end - s_start
-        # print(f"{self.bar.datetime}数据  sigmal计算 {s_cal_spread_limit}  当前cross_rate {cross_rate} 用时 {round(s_cost.microseconds, 5)}ms")
-        #
-        #
 
 
         # print(f"cross algo {self.bar.__dict__}")
@@ -735,8 +646,8 @@ class BacktestingEngine:
                 )
             else:
 
-                # if not (cross_rate > cal_spread_limit[0] and cross_rate < cal_spread_limit[1]):
-                if not (cross_rate > x_cal_spread_limit[0] and cross_rate < x_cal_spread_limit[1]):
+                if not (cross_rate > cal_spread_limit[0] and cross_rate < cal_spread_limit[1]):
+                # if not (cross_rate > x_cal_spread_limit[0] and cross_rate < x_cal_spread_limit[1]):
                         continue
 
                 long_cross = (
@@ -1211,96 +1122,7 @@ class DailyResult:
         self.total_pnl = self.trading_pnl + self.holding_pnl
         self.net_pnl = self.total_pnl - self.commission - self.slippage
 
-class QuartileFinder:
-    def __init__(self):
-        self.min_heap = []
-        self.max_heap = []
-        self.count = 0
 
-    def insert(self, num):
-        """
-        :type num: int
-        :rtype: void
-        """
-        # 当前是奇数的时候，直接"最小堆" -> "最大堆"，就可以了
-        # 此时"最小堆" 与 "最大堆" 的元素数组是相等的
-
-        # 当前是偶数的时候，"最小堆" -> "最大堆"以后，最终我们要让"最小堆"多一个元素
-        # 所以应该让 "最大堆" 拿出一个元素给 "最小堆"
-
-        heapq.heappush(self.min_heap, num)
-        temp = heapq.heappop(self.min_heap)
-        heapq.heappush(self.max_heap, -temp)
-        if self.count & 1 == 0:
-            temp = -heapq.heappop(self.max_heap)
-            heapq.heappush(self.min_heap, temp)
-        self.count += 1
-        # print(f" min {self.min_heap}")
-        # print(f"max {self.max_heap}")
-
-    def getMedian(self):
-        """
-        :rtype: float
-        """
-        if self.count & 1 == 1:
-            mid = self.min_heap[0]
-        else:
-            mid = (self.min_heap[0] + (-self.max_heap[0])) / 2
-        return mid
-
-class MidFinder:
-
-    def __init__(self):
-        self.min_heap = []
-        self.max_heap = []
-        self.count = 0
-
-    def insert(self, num):
-        """
-        :type num: int
-        :rtype: void
-        """
-        # 当前是奇数的时候，直接"最小堆" -> "最大堆"，就可以了
-        # 此时"最小堆" 与 "最大堆" 的元素数组是相等的
-
-        # 当前是偶数的时候，"最小堆" -> "最大堆"以后，最终我们要让"最小堆"多一个元素
-        # 所以应该让 "最大堆" 拿出一个元素给 "最小堆"
-
-        heapq.heappush(self.min_heap, num)
-        temp = heapq.heappop(self.min_heap)
-        heapq.heappush(self.max_heap, -temp)
-        if self.count & 1 == 0:
-            temp = -heapq.heappop(self.max_heap)
-            heapq.heappush(self.min_heap, temp)
-        self.count += 1
-        # print(f" min {self.min_heap}")
-        # print(f"max {self.max_heap}")
-    def get_heap_all(self):
-        return self.min_heap + self.max_heap
-    def get_lower_quartile(self):
-        pass
-    def getMedian(self):
-        """
-        :rtype: float
-        """
-        if self.count & 1 == 1:
-            mid = self.min_heap[0]
-        else:
-            mid = (self.min_heap[0] + (-self.max_heap[0])) / 2
-        #
-        # if self.count & 1 == 1:
-        #     mad_mid = np.abs(self.min_heap - np.float64(mid))[0]
-        # else:
-        #     mad_mid = ( np.abs(self.min_heap - np.float64(mid))[0] + (-np.abs(self.max_heap - np.float64(mid))[0])) / 2
-        #
-        #
-        # print(f"cal mad_mid {mad_mid}")
-        return mid
-
-    def clear(self):
-        self.min_heap = []
-        self.max_heap = []
-        self.count = 0
 
 
 def optimize(
@@ -1350,6 +1172,7 @@ def optimize(
     return (str(setting), target_value, statistics)
 
 
+
 @lru_cache(maxsize=1000000)
 def _ga_optimize(parameter_values: tuple):
     """"""
@@ -1376,6 +1199,8 @@ def _ga_optimize(parameter_values: tuple):
 def ga_optimize(parameter_values: list):
     """"""
     return _ga_optimize(tuple(parameter_values))
+
+
 
 
 

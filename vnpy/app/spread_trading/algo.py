@@ -9,7 +9,7 @@ from .base import SpreadData
 
 import numpy as np
 import heapq
-
+import numba
 
 class SpreadTakerAlgo(SpreadAlgoTemplate):
     """"""
@@ -41,6 +41,19 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
         self.spread_datas = []
         self.bid_spread_datas = []
         self.ask_spread_datas = []
+
+    @staticmethod
+    @numba.jit
+    def cal_qurtile(arr):
+        """
+        计算四分位上下限 过滤异常差价波动
+        return [上限， 下限]
+        """
+        q = np.quantile(arr, [0.25, 0.75])
+        q3 = q[1]
+        q1 = q[0]
+        iqr = q3 - q1
+        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
 
     def cal_std_stream(self, data):
 
@@ -91,7 +104,9 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                     self.ask_spread_datas.append(self.spread.ask_price)
 
                 # spread_std = np.std(self.spread_datas, ddof=1)
-                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas) #  使用numba 计算分位数
+
 
                 if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
@@ -103,7 +118,8 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                     self.bid_spread_datas.append(self.spread.bid_price)
 
                 # spread_std = np.std(self.spread_datas, ddof=1)
-                cal_spread_limit = self.cal_std_stream(self.bid_spread_datas)
+                # cal_spread_limit = self.cal_std_stream(self.bid_spread_datas)
+                cal_spread_limit = self.cal_qurtile(self.bid_spread_datas)
 
                 if self.spread.bid_price >= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
@@ -121,7 +137,9 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                 else:
                     self.aks_spread_datas.append(self.spread.ask_spread_rate)
                 # spread_std = np.std(self.spread_datas, ddof=1)
-                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas)
+
 
                 if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
                     self.take_active_leg()
@@ -132,7 +150,9 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                 else:
                     self.bid_spread_datas.append(self.spread.bid_spread_rate)
                 # spread_std = np.std(self.spread_datas, ddof=1)
-                cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas)
+
 
                 if self.spread.bid_spread_rate >= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1] ):
                     self.take_active_leg()
