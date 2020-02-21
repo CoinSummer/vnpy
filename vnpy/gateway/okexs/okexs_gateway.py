@@ -27,10 +27,7 @@ from vnpy.trader.object import (AccountData, BarData, CancelRequest, ContractDat
 
 _ = lambda x: x  # noqa
 REST_HOST = "https://www.okex.com"
-<<<<<<< HEAD
-# WEBSOCKET_HOST = "wss://real.okex.com:10442/ws/v3"
-=======
->>>>>>> upstream/dev
+
 WEBSOCKET_HOST = "wss://real.okex.com:8443/ws/v3"
 
 STATUS_OKEXS2VT = {

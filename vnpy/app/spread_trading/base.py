@@ -459,11 +459,8 @@ def load_bar_data(
 
     for dt in bars.keys():
         spread_price = 0
-<<<<<<< HEAD
         spread_rate = 0.0
-=======
         spread_value = 0
->>>>>>> upstream/dev
         spread_available = True
 
         for leg in spread.legs.values():
@@ -474,13 +471,10 @@ def load_bar_data(
                 price_multiplier = spread.price_multipliers[leg.vt_symbol]
                 spread_tmp = price_multiplier * leg_bar.close_price
                 spread_price += price_multiplier * leg_bar.close_price
-<<<<<<< HEAD
                 spread_rate = spread_price / spread_tmp * 100 * price_multiplier
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
                 # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
-=======
                 spread_value += abs(price_multiplier) * leg_bar.close_price
->>>>>>> upstream/dev
             else:
                 spread_available = False
 
@@ -500,12 +494,9 @@ def load_bar_data(
                 spread_rate=spread_rate,
                 gateway_name="SPREAD",
             )
-<<<<<<< HEAD
 
             # print(f"ljlsajf {spread_bar}")
-=======
             spread_bar.value = spread_value
->>>>>>> upstream/dev
             spread_bars.append(spread_bar)
 
     return spread_bars

@@ -23,15 +23,15 @@ from vnpy.trader.object import (
     PositionData
 )
 
-setting = {
-   "主动请求地址": "tcp://47.91.89.143:2014",
-   "推送订阅地址": "tcp://47.91.89.143:4102"
-}
-#
 # setting = {
-#         "主动请求地址": "tcp://127.0.0.1:2014",
-#         "推送订阅地址":"tcp://127.0.0.1:4102"
-#         }
+#    "主动请求地址": "tcp://47.91.89.143:2014",
+#    "推送订阅地址": "tcp://47.91.89.143:4102"
+# }
+#
+setting = {
+        "主动请求地址": "tcp://127.0.0.1:2014",
+        "推送订阅地址":"tcp://127.0.0.1:4102"
+        }
 
 def process_log_event(event: Event):
     log = event.data
@@ -44,7 +44,7 @@ def process_event(event: Event):
 def main():
     event_engine = EventEngine()
     # event_engine.register(EVENT_LOG, process_log_event)
-    # event_engine.register(EVENT_POSITION, process_event)
+    event_engine.register(EVENT_POSITION, process_event)
     event_engine.register(EVENT_ACCOUNT, process_event)
     # event_engine.register(EVENT_ORDER, process_event)
     # event_engine.register(EVENT_TRADE, process_event)
