@@ -1,3 +1,4 @@
+numba
 six==1.13.0
 PyQt5
 pyqtgraph

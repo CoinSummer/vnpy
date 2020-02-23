@@ -593,16 +593,14 @@ class BacktestingEngine:
 
 
 
-        # 使用四分位上下限计算
+        # # 使用四分位上下限计算
         # c_start = datetime.now()
-        # result = self.cal_filter(self.spread_datas)
-        # cal_spread_limit = self.cal_filter(self.spread_datas)
+        #
         cal_spread_limit = self.cal_qurtile(np.array(self.spread_datas))
-
-
+        # print(f"{self.bar.datetime}  四分位计算 {cal_spread_limit}  当前cross_rate {cross_rate} ")
+        #
         # c_end = datetime.now()
         # c_cost = (c_end - c_start)
-        # # print(f"{self.bar.datetime}数据 {self.spread_datas} 中位差 {cal_spread_limit}  当前cross_rate {cross_rate}")
         # print(f"{self.bar.datetime}用时 {round(c_cost.microseconds, 5)}ms  四分位计算 {cal_spread_limit}  当前cross_rate {cross_rate} ")
 
 

@@ -11,6 +11,7 @@ import numpy as np
 import heapq
 import numba
 
+
 class SpreadTakerAlgo(SpreadAlgoTemplate):
     """"""
     algo_name = "SpreadTaker"
@@ -42,39 +43,6 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
         self.bid_spread_datas = []
         self.ask_spread_datas = []
 
-    @staticmethod
-    @numba.jit
-    def cal_qurtile(arr):
-        """
-        计算四分位上下限 过滤异常差价波动
-        return [上限， 下限]
-        """
-        q = np.quantile(arr, [0.25, 0.75])
-        q3 = q[1]
-        q1 = q[0]
-        iqr = q3 - q1
-        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
-
-    def cal_std_stream(self, data):
-
-        """绝对中位差计算上下限 过滤异常数据"""
-
-        heap = MidFinder()
-        for d in data:
-            heap.insert(d)
-        median = np.float64(heap.getMedian())
-        b = 1.4826
-        mad_base = np.abs(data - median)
-
-        mad_heap = MidFinder()
-        for x in mad_base:
-            mad_heap.insert(x)
-        mad = np.float64(mad_heap.getMedian())
-
-        lower_limit = median - (1.5 * b * mad)
-        upper_limit = median + (1.5 * b * mad)
-
-        return [lower_limit, upper_limit]
 
     def on_tick(self, tick: TickData):
         """"""
@@ -105,10 +73,10 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
                 # spread_std = np.std(self.spread_datas, ddof=1)
                 # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
-                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas) #  使用numba 计算分位数
+                cal_spread_limit = self.cal_qurtile(np.array(self.ask_spread_datas)) #  使用numba 计算分位数
 
 
-                if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
+                if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.spread.ask_price <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
                 if len(self.spread_datas) > 17:
@@ -119,9 +87,10 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
                 # spread_std = np.std(self.spread_datas, ddof=1)
                 # cal_spread_limit = self.cal_std_stream(self.bid_spread_datas)
-                cal_spread_limit = self.cal_qurtile(self.bid_spread_datas)
 
-                if self.spread.bid_price >= self.price and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
+                cal_spread_limit = self.cal_qurtile(np.array(self.bid_spread_datas))
+
+                if self.spread.bid_price >= self.price and (cal_spread_limit[0] <= self.spread.ask_price <= cal_spread_limit[1]):
                     self.take_active_leg()
         else:
             # print(f" 使用 rate 交易 taker")
@@ -131,30 +100,33 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
             if self.direction == Direction.LONG:
 
-                if len(self.ask_spread_datas) > 17:
+                if len(self.ask_spread_datas) > 20:
                     self.ask_spread_datas.pop(0)
                     self.ask_spread_datas.append(self.spread.ask_spread_rate)
                 else:
-                    self.aks_spread_datas.append(self.spread.ask_spread_rate)
+                    self.ask_spread_datas.append(self.spread.ask_spread_rate)
                 # spread_std = np.std(self.spread_datas, ddof=1)
                 # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
-                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas)
+                # print(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(np.array(self.ask_spread_datas))
 
 
-                if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1]):
+                if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.spread.ask_spread_rate <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
-                if len(self.spread_datas) > 17:
+                if len(self.spread_datas) > 20:
                     self.bid_spread_datas.pop(0)
                     self.bid_spread_datas.append(self.spread.bid_spread_rate)
                 else:
                     self.bid_spread_datas.append(self.spread.bid_spread_rate)
                 # spread_std = np.std(self.spread_datas, ddof=1)
                 # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
-                cal_spread_limit = self.cal_qurtile(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(np.array(self.bid_spread_datas))
 
+                # print(f"bidspread_rate {self.spread.bid_spread_rate} , spread_rate {self.spread_rate} , "
+                #       f"cal_spread_limit {cal_spread_limit}, spread_rate {self.spread_rate} {(cal_spread_limit[0] <= self.spread.bid_spread_rate <= cal_spread_limit[1] )}")
+                if self.spread.bid_spread_rate >= self.spread_rate and (cal_spread_limit[0] <= self.spread.bid_spread_rate <= cal_spread_limit[1] ):
 
-                if self.spread.bid_spread_rate >= self.spread_rate and (cal_spread_limit[0] <= self.price <= cal_spread_limit[1] ):
                     self.take_active_leg()
 
     def on_order(self, order: OrderData):
@@ -244,6 +216,18 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
             self.send_short_order(leg.vt_symbol, price, abs(leg_volume))
 
+    @staticmethod
+    @numba.njit
+    def cal_qurtile(arr):
+        """
+        计算四分位上下限 过滤异常差价波动
+        return [上限， 下限]
+        """
+        q = np.quantile(arr, [0.25, 0.75])
+        q3 = q[1]
+        q1 = q[0]
+        iqr = q3 - q1
+        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
 
 class SpreadMakerAlgo(SpreadAlgoTemplate):
     """"""
@@ -474,59 +458,3 @@ class SpreadMakerAlgo(SpreadAlgoTemplate):
         quote_price = round_to(quote_price, contract.pricetick)
 
         return quote_price
-
-class MidFinder:
-
-    def __init__(self):
-        self.min_heap = []
-        self.max_heap = []
-        self.count = 0
-
-    def insert(self, num):
-        """
-        :type num: int
-        :rtype: void
-        """
-        # 当前是奇数的时候，直接"最小堆" -> "最大堆"，就可以了
-        # 此时"最小堆" 与 "最大堆" 的元素数组是相等的
-
-        # 当前是偶数的时候，"最小堆" -> "最大堆"以后，最终我们要让"最小堆"多一个元素
-        # 所以应该让 "最大堆" 拿出一个元素给 "最小堆"
-
-        heapq.heappush(self.min_heap, num)
-        temp = heapq.heappop(self.min_heap)
-        heapq.heappush(self.max_heap, -temp)
-        if self.count & 1 == 0:
-            temp = -heapq.heappop(self.max_heap)
-            heapq.heappush(self.min_heap, temp)
-        self.count += 1
-        # print(f" min {self.min_heap}")
-        # print(f"max {self.max_heap}")
-    def get_heap_all(self):
-        return self.min_heap + self.max_heap
-    def get_lower_quartile(self):
-        pass
-    def getMedian(self):
-        """
-        :rtype: float
-        """
-        if len(self.min_heap) == 0:
-            return 0
-        if self.count & 1 == 1:
-            mid = self.min_heap[0]
-        else:
-            mid = (self.min_heap[0] + (-self.max_heap[0])) / 2
-        #
-        # if self.count & 1 == 1:
-        #     mad_mid = np.abs(self.min_heap - np.float64(mid))[0]
-        # else:
-        #     mad_mid = ( np.abs(self.min_heap - np.float64(mid))[0] + (-np.abs(self.max_heap - np.float64(mid))[0])) / 2
-        #
-        #
-        # print(f"cal mad_mid {mad_mid}")
-        return mid
-
-    def clear(self):
-        self.min_heap = []
-        self.max_heap = []
-        self.count = 0
