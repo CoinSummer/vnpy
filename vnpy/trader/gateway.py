@@ -32,6 +32,13 @@ from .object import (
     BarData
 )
 
+from threading import Thread
+import requests
+from pytz import timezone
+from datetime import datetime
+from queue import Empty, Queue
+
+
 
 class BaseGateway(ABC):
     """
@@ -80,6 +87,7 @@ class BaseGateway(ABC):
 
     def __init__(self, event_engine: EventEngine, gateway_name: str):
         """"""
+        self.gateway_send = SlackGateEngine()
         self.event_engine: EventEngine = event_engine
         self.gateway_name: str = gateway_name
 
@@ -148,6 +156,12 @@ class BaseGateway(ABC):
         """
         log = LogData(msg=msg, gateway_name=self.gateway_name)
         self.on_log(log)
+        self.slack_send(msg, self.gateway_name)
+
+    def slack_send(self, msg: str, gateway_name: str) -> None:
+
+        self.gateway_send.send_gateway_slack(msg, gateway_name)
+
 
     @abstractmethod
     def connect(self, setting: dict) -> None:
@@ -385,3 +399,65 @@ class LocalOrderManager:
 
         req = self.cancel_request_buf.pop(local_orderid)
         self.gateway.cancel_order(req)
+
+
+def get_ip():
+    return requests.get(url="http://myip.ipip.net").text
+
+class SlackGateEngine(object):
+
+    def __init__(self) -> object:
+        """"""
+        super(SlackGateEngine, self).__init__()
+
+        self.thread: Thread = Thread(target=self.run)
+        self.queue: Queue = Queue()
+        self.active: bool = False
+        self.ip = get_ip()
+
+        self.send_gateway_slack = self.send_slack
+
+    def send_slack(self, content: str, category: str) -> None:
+        """slack 消息推送"""
+
+        if not self.active:
+            self.start()
+
+        cst_tz = timezone('Asia/Shanghai')
+        time_now = datetime.now().replace(tzinfo=cst_tz).strftime("%Y-%m-%d %H:%M:%S")
+        # send_info = time_now + '\n' + category + '\n' + content
+        send_info = time_now + '\n' + self.ip +'\n' + "接口:" + category + '\n' + content
+
+        msg = {
+                "type": "Gateway",
+                "info": send_info
+            }
+        print(f"in trader engine {msg}")
+        self.queue.put(msg)
+
+    def run(self) -> None:
+        """"""
+        while self.active:
+            try:
+                msg = self.queue.get(block=True, timeout=1)
+
+                url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                requests.post(url, data=msg)
+                print('Slack send success')
+            except Empty:
+                pass
+            except Exception as e:
+                print("Slack send failed", e)
+
+    def start(self) -> None:
+        """"""
+        self.active = True
+        self.thread.start()
+
+    def close(self) -> None:
+        """"""
+        if not self.active:
+            return
+
+        self.active = False
+        self.thread.join()

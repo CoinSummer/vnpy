@@ -42,6 +42,9 @@ from .object import (
 from .setting import SETTINGS
 from .utility import get_folder_path, TRADER_DIR
 
+import requests
+from pytz import timezone
+
 
 class MainEngine:
     """
@@ -60,9 +63,8 @@ class MainEngine:
         self.engines: Dict[str, BaseEngine] = {}
         self.apps: Dict[str, BaseApp] = {}
         self.exchanges: List[Exchange] = []
-
-        os.chdir(TRADER_DIR)    # Change working directory
-        self.init_engines()     # Initialize function engines
+        os.chdir(TRADER_DIR)  # Change working directory
+        self.init_engines()  # Initialize function engines
 
     def add_engine(self, engine_class: Any) -> "BaseEngine":
         """
@@ -103,6 +105,7 @@ class MainEngine:
         self.add_engine(LogEngine)
         self.add_engine(OmsEngine)
         self.add_engine(EmailEngine)
+        self.add_engine(SlackEngine)
 
     def write_log(self, msg: str, source: str = "") -> None:
         """
@@ -110,6 +113,7 @@ class MainEngine:
         """
         log = LogData(msg=msg, gateway_name=source)
         event = Event(EVENT_LOG, log)
+        # print(f"jlslajfals {log}")
         self.event_engine.put(event)
 
     def get_gateway(self, gateway_name: str) -> BaseGateway:
@@ -238,10 +242,10 @@ class BaseEngine(ABC):
     """
 
     def __init__(
-        self,
-        main_engine: MainEngine,
-        event_engine: EventEngine,
-        engine_name: str,
+            self,
+            main_engine: MainEngine,
+            event_engine: EventEngine,
+            engine_name: str,
     ):
         """"""
         self.main_engine = main_engine
@@ -540,7 +544,7 @@ class EmailEngine(BaseEngine):
                 msg = self.queue.get(block=True, timeout=1)
 
                 with smtplib.SMTP_SSL(
-                    SETTINGS["email.server"], SETTINGS["email.port"]
+                        SETTINGS["email.server"], SETTINGS["email.port"]
                 ) as smtp:
                     smtp.login(
                         SETTINGS["email.username"], SETTINGS["email.password"]
@@ -548,6 +552,67 @@ class EmailEngine(BaseEngine):
                     smtp.send_message(msg)
             except Empty:
                 pass
+
+    def start(self) -> None:
+        """"""
+        self.active = True
+        self.thread.start()
+
+    def close(self) -> None:
+        """"""
+        if not self.active:
+            return
+
+        self.active = False
+        self.thread.join()
+
+
+def get_ip():
+    return requests.get(url="http://myip.ipip.net").text
+
+
+class SlackEngine(BaseEngine):
+
+    def __init__(self, main_engine: MainEngine, event_engine: EventEngine):
+        """"""
+        super(SlackEngine, self).__init__(main_engine, event_engine, "slack")
+
+        self.thread: Thread = Thread(target=self.run)
+        self.queue: Queue = Queue()
+        self.active: bool = False
+        self.ip = get_ip()
+        self.main_engine.send_slack = self.send_slack
+
+    def send_slack(self, content: str, category: str) -> None:
+        """slack 消息推送"""
+
+        if not self.active:
+            self.start()
+
+        cst_tz = timezone('Asia/Shanghai')
+        time_now = datetime.now().replace(tzinfo=cst_tz).strftime("%Y-%m-%d %H:%M:%S")
+        send_info = time_now + '\n' + self.ip + category + '\n' + content
+
+        msg = {
+            "type": category,
+            "info": send_info
+        }
+        # print(f"in trader engine {msg}")
+        self.queue.put(msg)
+
+    def run(self) -> None:
+        """"""
+        while self.active:
+            try:
+                msg = self.queue.get(block=True, timeout=1)
+
+                url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                requests.post(url, data=msg)
+                # print('Slack send success')
+            except Empty:
+                pass
+            except Exception as e:
+                print("Slack send failed", e)
 
     def start(self) -> None:
         """"""

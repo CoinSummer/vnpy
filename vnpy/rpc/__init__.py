@@ -68,10 +68,11 @@ class RpcServer:
         """"""
         return self.__active
 
-    def start(self, rep_address: str, pub_address: str) -> None:
+    def start(self, rep_address: str, pub_address: str, key_dir: str) -> None:
         """
         Start RpcServer
         """
+        print(f"init {key_dir}")
         if self.__active:
             return
 
@@ -84,7 +85,7 @@ class RpcServer:
 
         # Start RpcServer thread
         self.__thread = threading.Thread(target=self.run)
-        self.__thread.start()
+        self.__thread.start(key_dir)
 
     def stop(self) -> None:
         """

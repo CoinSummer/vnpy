@@ -9,6 +9,8 @@ from vnpy.trader.engine import BaseEngine, MainEngine
 from vnpy.trader.utility import load_json, save_json
 from vnpy.trader.object import LogData
 
+import os
+
 APP_NAME = "RpcService"
 
 EVENT_RPC_LOG = "eRpcLog"
@@ -70,7 +72,7 @@ class RpcEngine(BaseEngine):
         }
         save_json(self.setting_filename, setting)
 
-    def start(self, rep_address: str, pub_address: str):
+    def start(self, rep_address: str, pub_address: str, keys: str):
         """"""
         if self.server.is_active():
             self.write_log("RPC服务运行中")
@@ -78,9 +80,9 @@ class RpcEngine(BaseEngine):
 
         self.rep_address = rep_address
         self.pub_address = pub_address
-
+        print(f' engin {os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))}')
         try:
-            self.server.start(rep_address, pub_address)
+            self.server.start(rep_address, pub_address, keys)
         except:  # noqa
             msg = traceback.format_exc()
             self.write_log(f"RPC服务启动失败：{msg}")
@@ -118,5 +120,4 @@ class RpcEngine(BaseEngine):
         """"""
         log = LogData(msg=msg, gateway_name=APP_NAME)
         event = Event(EVENT_RPC_LOG, log)
-        print(f"in engine {event.__dict__}")
         self.event_engine.put(event)

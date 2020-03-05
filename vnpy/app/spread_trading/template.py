@@ -62,7 +62,7 @@ class SpreadAlgoTemplate:
         self.leg_traded: Dict[str, float] = defaultdict(int)
         self.leg_orders: Dict[str, List[str]] = defaultdict(list)
 
-        self.write_log("算法已启动")
+        self.write_log(f"算法已启动 方向：{direction}")
 
     def is_active(self):
         """"""
@@ -139,14 +139,24 @@ class SpreadAlgoTemplate:
 
         if trade.direction == Direction.LONG:
             self.leg_traded[trade.vt_symbol] += trade_volume
+            self.spread_price = self.spread.ask_price
+            self.spread_r = self.spread.ask_spread_rate
         else:
             self.leg_traded[trade.vt_symbol] -= trade_volume
+            self.spread_price = self.spread.bid_price
+            self.spread_r = self.spread.bid_spread_rate
 
-        msg = "委托成交，{}，{}，{}@{}".format(
+        # print(self.spread.__dict__)
+        # print(self.spread.legs[trade.vt_symbol].net_pos)
+        msg = "委托成交，{}，{}，{}@{}\n差价 {}, 差价比 {},\n 持仓量 {} , 持仓均价 {}".format(
             trade.vt_symbol,
             trade.direction,
             trade.volume,
-            trade.price
+            trade.price,
+            self.spread_price,
+            self.spread_r,
+            self.spread.legs[trade.vt_symbol].net_pos,
+            self.spread.legs[trade.vt_symbol].net_pos_price
         )
         self.write_log(msg)
 
@@ -180,6 +190,7 @@ class SpreadAlgoTemplate:
     def write_log(self, msg: str):
         """"""
         self.algo_engine.write_algo_log(self, msg)
+
 
     def send_long_order(self, vt_symbol: str, price: float, volume: float):
         """"""
@@ -222,6 +233,7 @@ class SpreadAlgoTemplate:
         )
 
         self.leg_orders[vt_symbol].extend(vt_orderids)
+
 
         msg = "发出委托，{}，{}，{}@{}".format(
             vt_symbol,
