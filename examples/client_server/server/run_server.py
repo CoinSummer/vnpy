@@ -13,6 +13,26 @@ from vnpy.gateway.coinbase import CoinbaseGateway
 from vnpy.app.rpc_service import RpcServiceApp
 from vnpy.app.rpc_service.engine import EVENT_RPC_LOG
 
+import os
+import shutil
+import zmq.auth
+
+
+def generate_certificates(base_dir):
+    ''' Generate client and server CURVE certificate files'''
+    keys_dir = os.path.join(base_dir, 'certificates')
+    print(f"jaslfjas  {base_dir}")
+    if os.path.exists(keys_dir):
+        shutil.rmtree(keys_dir)
+    os.mkdir(keys_dir)
+
+    # create new keys in certificates dir
+    server_public_file, server_secret_file = zmq.auth.create_certificates(keys_dir, "server")
+    client_public_file, client_secret_file = zmq.auth.create_certificates(keys_dir, "client")
+
+    # generate_certificates(os.path.dirname('__file__'))
+
+
 
 def main_ui():
     """"""
@@ -96,19 +116,30 @@ def main_terminal():
         "proxy_host": "",
         "proxy_port": ""
     }
-    # main_engine.connect(setting, "CTP")
-    main_engine.connect(setting_ok, "OKEXS")
-    # main_engine.connect(setting_ok, "OKEXF")
-
+    # main_engine.connect(setting_ok, "OKEXS")
+    # # main_engine.connect(setting_ok, "OKEXF")
+    #
     # main_engine.connect(setting_coinbase, "COINBASE")
     # main_engine.connect(setting, "BITMEX")
 
+    # b_dir = os.path.split(os.path.abspath(__file__))[0]
+    # print(f'bdir {b_dir} {os.getcwd()} {os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))}')
+    # print(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))
+    keys_dir = os.path.join(base_dir, 'certificates')
+    # print(f"路径 {keys_dir}  {os.path.dirname(os.path.realpath('__file__'))} {os.getcwd()} {os.path.exists(keys_dir)}")
+    if not os.path.exists(keys_dir):
+        generate_certificates(base_dir)
+        print("生成认证文件")
 
     sleep(10)
 
+    print(keys_dir)
+    load_file = os.path.join(keys_dir, "certificates/server.key_secret")
     rep_address = "tcp://127.0.0.1:2014"
     pub_address = "tcp://127.0.0.1:4102"
-    rpc_engine.start(rep_address, pub_address)
+    rpc_engine.start(rep_address, pub_address, load_file)
 
     while True:
         sleep(1)

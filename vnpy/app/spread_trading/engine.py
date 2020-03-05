@@ -19,6 +19,7 @@ from vnpy.trader.object import (
     SubscribeRequest, OrderRequest
 )
 from vnpy.trader.constant import (
+
     Direction, Offset, OrderType, Interval
 )
 from vnpy.trader.converter import OffsetConverter
@@ -32,6 +33,7 @@ from .base import (
 )
 from .template import SpreadAlgoTemplate, SpreadStrategyTemplate
 from .algo import SpreadTakerAlgo, SpreadMakerAlgo
+
 
 
 APP_NAME = "SpreadTrading"
@@ -81,8 +83,15 @@ class SpreadEngine(BaseEngine):
             gateway_name=APP_NAME
         )
         event = Event(EVENT_SPREAD_LOG, log)
+        # self.send_slack(msg)
+        self.send_slack(msg, APP_NAME)
         self.event_engine.put(event)
 
+    def send_slack(self, msg: str, category: str):
+        """
+              Send Slack .
+        """
+        self.main_engine.send_slack(msg, category)
 
 class SpreadDataEngine:
     """"""
@@ -95,6 +104,7 @@ class SpreadDataEngine:
         self.event_engine: EventEngine = spread_engine.event_engine
 
         self.write_log = spread_engine.write_log
+        # self.slack_send = spread_engine.send_slack
 
         self.legs: Dict[str, LegData] = {}          # vt_symbol: leg
         self.spreads: Dict[str, SpreadData] = {}    # name: spread
@@ -182,7 +192,6 @@ class SpreadDataEngine:
         if not leg:
             return
         leg.update_position(position)
-
         for spread in self.symbol_spread_map[position.vt_symbol]:
             spread.calculate_pos()
             self.put_pos_event(spread)
