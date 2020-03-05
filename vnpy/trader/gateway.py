@@ -432,7 +432,7 @@ class SlackGateEngine(object):
                 "type": "Gateway",
                 "info": send_info
             }
-        print(f"in trader engine {msg}")
+        # print(f"in gateway engine {msg}")
         self.queue.put(msg)
 
     def run(self) -> None:
@@ -443,7 +443,7 @@ class SlackGateEngine(object):
 
                 url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
                 requests.post(url, data=msg)
-                print('Slack send success')
+                # print('Slack send success')
             except Empty:
                 pass
             except Exception as e:
