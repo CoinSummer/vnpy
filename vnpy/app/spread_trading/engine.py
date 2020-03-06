@@ -84,8 +84,9 @@ class SpreadEngine(BaseEngine):
         )
         event = Event(EVENT_SPREAD_LOG, log)
         # self.send_slack(msg)
-        self.send_slack(msg, APP_NAME)
         self.event_engine.put(event)
+        self.send_slack(msg, APP_NAME)
+
 
     def send_slack(self, msg: str, category: str):
         """

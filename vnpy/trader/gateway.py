@@ -38,7 +38,7 @@ from pytz import timezone
 from datetime import datetime
 from queue import Empty, Queue
 
-
+from .setting import SETTINGS
 
 class BaseGateway(ABC):
     """
@@ -420,13 +420,23 @@ class SlackGateEngine(object):
     def send_slack(self, content: str, category: str) -> None:
         """slack 消息推送"""
 
+        if "获取历史数据成功" in content:
+            return
+
         if not self.active:
             self.start()
 
         cst_tz = timezone('Asia/Shanghai')
         time_now = datetime.now().replace(tzinfo=cst_tz).strftime("%Y-%m-%d %H:%M:%S")
         # send_info = time_now + '\n' + category + '\n' + content
-        send_info = time_now + '\n' + self.ip +'\n' + "接口:" + category + '\n' + content
+        # send_info = time_now + '\n' + self.ip +'\n' + "接口:" + category + '\n' + content
+        send_info = "PushTime: {} \n {} {} \nExchange: {} \n {} ".format(
+            time_now,
+            SETTINGS["server.ip"],
+            SETTINGS["server.name"],
+            category,
+            content
+        )
 
         msg = {
                 "type": "Gateway",
@@ -441,7 +451,9 @@ class SlackGateEngine(object):
             try:
                 msg = self.queue.get(block=True, timeout=1)
 
-                url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                # url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                url = SETTINGS["slack.url"]
+
                 requests.post(url, data=msg)
                 # print('Slack send success')
             except Empty:
