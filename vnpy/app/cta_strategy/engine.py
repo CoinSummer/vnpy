@@ -909,6 +909,8 @@ class CtaEngine(BaseEngine):
         log = LogData(msg=msg, gateway_name="CtaStrategy")
         event = Event(type=EVENT_CTA_LOG, data=log)
         self.event_engine.put(event)
+        self.send_slack(msg, APP_NAME)
+
 
     def send_email(self, msg: str, strategy: CtaTemplate = None):
         """
@@ -920,3 +922,9 @@ class CtaEngine(BaseEngine):
             subject = "CTA策略引擎"
 
         self.main_engine.send_email(subject, msg)
+
+    def send_slack(self, msg: str, category: str):
+        """
+              Send Slack .
+        """
+        self.main_engine.send_slack(msg, category)

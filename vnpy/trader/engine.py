@@ -567,8 +567,8 @@ class EmailEngine(BaseEngine):
         self.thread.join()
 
 
-def get_ip():
-    return requests.get(url="http://myip.ipip.net").text
+# def get_ip():
+#     return requests.get(url="http://myip.ipip.net").text
 
 
 class SlackEngine(BaseEngine):
@@ -580,7 +580,8 @@ class SlackEngine(BaseEngine):
         self.thread: Thread = Thread(target=self.run)
         self.queue: Queue = Queue()
         self.active: bool = False
-        self.ip = get_ip()
+        # self.ip = get_ip()
+        self.ip = SETTINGS["server.ip"]
         self.main_engine.send_slack = self.send_slack
 
     def send_slack(self, content: str, category: str) -> None:
@@ -591,8 +592,14 @@ class SlackEngine(BaseEngine):
 
         cst_tz = timezone('Asia/Shanghai')
         time_now = datetime.now().replace(tzinfo=cst_tz).strftime("%Y-%m-%d %H:%M:%S")
-        send_info = time_now + '\n' + self.ip + category + '\n' + content
-
+        # send_info = time_now + '\n' + self.ip + category + '\n' + content
+        send_info = "PushTime:{} \n {} {}  \nCategory: {} \n {} ".format(
+            time_now,
+            SETTINGS["server.ip"],
+            SETTINGS["server.name"],
+            category,
+            content
+        )
         msg = {
             "type": category,
             "info": send_info
@@ -606,7 +613,8 @@ class SlackEngine(BaseEngine):
             try:
                 msg = self.queue.get(block=True, timeout=1)
 
-                url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                # url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                url = SETTINGS["slack.url"]
                 requests.post(url, data=msg)
                 # print('Slack send success')
             except Empty:
