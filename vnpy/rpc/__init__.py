@@ -72,20 +72,17 @@ class RpcServer:
         """"""
         return self.__active
 
-<<<<<<< HEAD
+
     def start(
         self, 
         rep_address: str, 
         pub_address: str,
         server_secretkey_path: str = ""
     ) -> None:
-=======
-    def start(self, rep_address: str, pub_address: str, key_dir: str) -> None:
->>>>>>> *update) 添加slack 推送功能，rpc 认证功能进行一半可以生成证书
+
         """
         Start RpcServer
         """
-        print(f"init {key_dir}")
         if self.__active:
             return
 

@@ -27,14 +27,7 @@ from vnpy.trader.object import (AccountData, BarData, CancelRequest, ContractDat
 
 _ = lambda x: x  # noqa
 REST_HOST = "https://www.okex.com"
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-# WEBSOCKET_HOST = "wss://real.okex.com:10442/ws/v3"
->>>>>>> *update) 更新添加已经修改的spread 测试版已上线20200214
-=======
 
->>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
 WEBSOCKET_HOST = "wss://real.okex.com:8443/ws/v3"
 
 STATUS_OKEXS2VT = {

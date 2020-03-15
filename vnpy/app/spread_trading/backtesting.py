@@ -607,22 +607,7 @@ class BacktestingEngine:
         # print(f"cross algo {self.bar.__dict__}")
         for algo in list(self.active_algos.values()):
             # Check whether limit orders can be filled.
-<<<<<<< HEAD
-<<<<<<< HEAD
-            long_cross = (
-                algo.direction == Direction.LONG
-                and algo.price >= long_cross_price
-            )
-
-            short_cross = (
-                algo.direction == Direction.SHORT
-                and algo.price <= short_cross_price
-            )
-=======
-            # print(f"algo value {algo.spread.__dict__}")
-=======
             # print(f"algo value {algo.__dict__}")
->>>>>>> *update) 修复spread rate 实盘无法创建algo 问题
             # print(f"[algo info]  {algo.__dict__} {cross_rate} {long_cross_price}")
 
             if algo.spread_rate == 0:
@@ -664,7 +649,6 @@ class BacktestingEngine:
                         and algo.spread_rate <= cross_rate
                 )
                 # print(f"short cross {short_cross} {algo.direction} {algo.price} {short_cross_price}  {algo.spread_rate} {cross_rate}")
->>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
 
             if not long_cross and not short_cross:
                 continue

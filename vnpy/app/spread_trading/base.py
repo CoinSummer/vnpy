@@ -459,16 +459,8 @@ def load_bar_data(
 
     for dt in bars.keys():
         spread_price = 0
-<<<<<<< HEAD
-<<<<<<< HEAD
-        spread_value = 0
-=======
-        spread_rate = 0.0
->>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
-=======
         spread_rate = 0.0
         spread_value = 0
->>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
         spread_available = True
 
         for leg in spread.legs.values():
@@ -479,45 +471,10 @@ def load_bar_data(
                 price_multiplier = spread.price_multipliers[leg.vt_symbol]
                 spread_tmp = price_multiplier * leg_bar.close_price
                 spread_price += price_multiplier * leg_bar.close_price
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-                spread_value += abs(price_multiplier) * leg_bar.close_price
-=======
-                spread_rate = spread_price / abs(spread_tmp) * 100
-                # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
->>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
-=======
-                spread_rate = spread_price / abs(spread_tmp) * 100 * price_multiplier
-=======
-=======
->>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
                 spread_rate = spread_price / spread_tmp * 100 * price_multiplier
->>>>>>> *update) 添加spread_rate muliterprice 计算
                 # print(f"spread price {leg.vt_symbol} {spread_price} {spread_tmp} {spread_rate}")
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-                print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
->>>>>>> *bugfix)  修复 algo bic_price 书写错误 更改为 bid_price添加多方向spread_rate 计算
-=======
-                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
->>>>>>> *update) add spread max strategy
-=======
->>>>>>> test in windows
-=======
-                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price}")
->>>>>>> Update base.py
-=======
-                # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
->>>>>>> *update) 添加spread 极值过滤方法
-=======
                 # print(f"spread {leg.vt_symbol} {spread_tmp} {leg_bar.datetime} {spread_price} {spread_rate}")
                 spread_value += abs(price_multiplier) * leg_bar.close_price
->>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
             else:
                 spread_available = False
 
@@ -537,18 +494,9 @@ def load_bar_data(
                 spread_rate=spread_rate,
                 gateway_name="SPREAD",
             )
-<<<<<<< HEAD
-<<<<<<< HEAD
-            spread_bar.value = spread_value
-=======
-
-            # print(f"ljlsajf {spread_bar}")
->>>>>>> *update) 添加spread_rate 按比例下单功能，测试使用bm_q_date_spread
-=======
 
             # print(f"ljlsajf {spread_bar}")
             spread_bar.value = spread_value
->>>>>>> *update) update okexs/f gateway websocket , update numba cal_qurtile in
             spread_bars.append(spread_bar)
 
     return spread_bars
