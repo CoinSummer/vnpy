@@ -77,7 +77,7 @@ class RpcServer:
         self, 
         rep_address: str, 
         pub_address: str,
-        server_secretkey_path: str = ""
+        server_secretkey_path: str = Path.cwd().joinpath("certificates/server.key_secret")
     ) -> None:
 
         """
@@ -85,7 +85,7 @@ class RpcServer:
         """
         if self.__active:
             return
-
+        print(f"server{server_secretkey_path}")
         # Start authenticator
         if server_secretkey_path:
             self.__authenticator = ThreadAuthenticator(self.__context)
@@ -114,7 +114,7 @@ class RpcServer:
 
         # Start RpcServer thread
         self.__thread = threading.Thread(target=self.run)
-        self.__thread.start(key_dir)
+        self.__thread.start()
 
     def stop(self) -> None:
         """
@@ -241,8 +241,11 @@ class RpcClient:
         self, 
         req_address: str, 
         sub_address: str,
-        client_secretkey_path: str = "",
-        server_publickey_path: str = ""
+        client_secretkey_path: str = Path.cwd().joinpath("certificates/client.key_secret"),
+        server_publickey_path: str = Path.cwd().joinpath("certificates/server.key")
+        # client_secretkey_path: str =  "",
+        # server_publickey_path: str =  ""
+
     ) -> None:
         """
         Start RpcClient
@@ -250,6 +253,8 @@ class RpcClient:
         if self.__active:
             return
 
+
+        print(client_secretkey_path, server_publickey_path)
         # Start authenticator
         if client_secretkey_path and server_publickey_path:
             self.__authenticator = ThreadAuthenticator(self.__context)

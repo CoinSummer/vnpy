@@ -137,6 +137,7 @@ def main_terminal():
 
     print(keys_dir)
     load_file = os.path.join(keys_dir, "certificates/server.key_secret")
+    print(f"load_file {load_file}")
     rep_address = "tcp://127.0.0.1:2014"
     pub_address = "tcp://127.0.0.1:4102"
     rpc_engine.start(rep_address, pub_address, load_file)
@@ -147,7 +148,7 @@ def main_terminal():
 
 if __name__ == "__main__":
     # Run in GUI mode
-    # main_ui()
+    main_ui()
 
     # Run in CLI mode
-    main_terminal()
+    # main_terminal()

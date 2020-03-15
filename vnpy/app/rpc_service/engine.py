@@ -68,11 +68,11 @@ class RpcEngine(BaseEngine):
         """"""
         setting = {
             "rep_address": self.rep_address,
-            "pub_address": self.pub_address
+            "pub_address": self.pub_address,
         }
         save_json(self.setting_filename, setting)
 
-    def start(self, rep_address: str, pub_address: str, keys: str):
+    def start(self, rep_address: str, pub_address: str):
         """"""
         if self.server.is_active():
             self.write_log("RPC服务运行中")
@@ -80,9 +80,9 @@ class RpcEngine(BaseEngine):
 
         self.rep_address = rep_address
         self.pub_address = pub_address
-        print(f' engin {os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))}')
+        # print(f' engin {os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))}')
         try:
-            self.server.start(rep_address, pub_address, keys)
+            self.server.start(rep_address, pub_address)
         except:  # noqa
             msg = traceback.format_exc()
             self.write_log(f"RPC服务启动失败：{msg}")
