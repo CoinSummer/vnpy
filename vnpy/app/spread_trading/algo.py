@@ -65,7 +65,7 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
 
             if self.direction == Direction.LONG:
-                if len(self.spread_datas) > 17:
+                if len(self.ask_spread_datas) > 50:
                     self.ask_spread_datas.pop(0)
                     self.ask_spread_datas.append(self.spread.ask_price)
                 else:
@@ -79,7 +79,7 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                 if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.spread.ask_price <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
-                if len(self.spread_datas) > 17:
+                if len(self.bid_spread_datas) > 50:
                     self.bid_spread_datas.pop(0)
                     self.bid_spread_datas.append(self.spread.bid_price)
                 else:
@@ -100,7 +100,7 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
 
             if self.direction == Direction.LONG:
 
-                if len(self.ask_spread_datas) > 20:
+                if len(self.ask_spread_datas) > 50:
                     self.ask_spread_datas.pop(0)
                     self.ask_spread_datas.append(self.spread.ask_spread_rate)
                 else:
@@ -114,7 +114,7 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
                 if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.spread.ask_spread_rate <= cal_spread_limit[1]):
                     self.take_active_leg()
             else:
-                if len(self.spread_datas) > 20:
+                if len(self.bid_spread_datas) > 50:
                     self.bid_spread_datas.pop(0)
                     self.bid_spread_datas.append(self.spread.bid_spread_rate)
                 else:

@@ -65,7 +65,6 @@ class MainEngine:
         self.exchanges: List[Exchange] = []
         os.chdir(TRADER_DIR)  # Change working directory
         self.init_engines()  # Initialize function engines
-
     def add_engine(self, engine_class: Any) -> "BaseEngine":
         """
         Add function engine.

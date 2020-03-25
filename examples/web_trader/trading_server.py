@@ -71,7 +71,6 @@ class SpreadTradingServer(RpcServer):
             "msg": log.msg,
             "time": str(log.time)
         }
-        print(data)
 
         self.publish(EVENT_SPREAD_LOG, data)
 

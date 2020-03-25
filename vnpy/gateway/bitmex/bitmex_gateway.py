@@ -315,6 +315,58 @@ class BitmexRestApi(RestClient):
             params=params,
             on_error=self.on_cancel_order_error,
         )
+    def trade_history(self, req: HistoryRequest):
+        if not self.check_rate_limit():
+            return
+
+        history = []
+        count = 750
+        start_time = req.start.isoformat()
+
+        while True:
+            # Create query params
+            params = {
+                "binSize": INTERVAL_VT2BITMEX[req.interval],
+                "symbol": req.symbol,
+                "count": count,
+                "startTime": start_time
+            }
+
+            # Add end time if specified
+            if req.end:
+                params["endTime"] = req.end.isoformat()
+
+            # Get response from server
+            resp = self.request(
+                "GET",
+                "/execution/tradeHistory",
+                params=params
+            )
+            if resp.status_code // 100 != 2:
+                msg = f"获取交易历史数据失败，状态码：{resp.status_code}，信息：{resp.text}"
+                self.gateway.write_log(msg)
+                break
+            else:
+                data = resp.json()
+                if not data:
+                    msg = f"获取交易历史数据为空，开始时间：{start_time}，数量：{count}"
+                    break
+
+                for d in data:
+                    dt = datetime.strptime(
+                        d["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    bar = BarData(
+                        symbol=req.symbol,
+                        exchange=req.exchange,
+                        datetime=dt,
+                        interval=req.interval,
+                        volume=d["volume"],
+                        open_price=d["open"],
+                        high_price=d["high"],
+                        low_price=d["low"],
+                        close_price=d["close"],
+                        gateway_name=self.gateway_name
+                    )
 
     def query_history(self, req: HistoryRequest):
         """"""

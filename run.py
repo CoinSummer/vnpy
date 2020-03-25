@@ -43,7 +43,7 @@ from vnpy.app.risk_manager import RiskManagerApp
 from vnpy.app.script_trader import ScriptTraderApp
 from vnpy.app.rpc_service import RpcServiceApp
 from vnpy.app.spread_trading import SpreadTradingApp
-
+import datetime
 
 def main():
     """"""
@@ -62,13 +62,13 @@ def main():
 #    main_engine.add_gateway(TigerGateway)
 #    main_engine.add_gateway(OesGateway)
     main_engine.add_gateway(OkexGateway)
-    main_engine.add_gateway(HuobiGateway)
+#     main_engine.add_gateway(HuobiGateway)
     # main_engine.add_gateway(BitfinexGateway)
     # main_engine.add_gateway(OnetokenGateway)
-    main_engine.add_gateway(OkexfGateway)
+    # main_engine.add_gateway(OkexfGateway)
     main_engine.add_gateway(OkexsGateway)
 
-    main_engine.add_gateway(HbdmGateway)
+    # main_engine.add_gateway(HbdmGateway)
     main_engine.add_gateway(CoinbaseGateway)
 
     main_engine.add_app(CtaStrategyApp)

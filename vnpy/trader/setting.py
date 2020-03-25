@@ -45,7 +45,7 @@ SETTINGS: Dict[str, Any] = {
 # Load global setting from json file.
 SETTING_FILENAME: str = "vt_setting.json"
 SETTINGS.update(load_json(SETTING_FILENAME))
-
+print(f'ip 信息获取 {SETTINGS["server.ip"]}')
 
 def get_settings(prefix: str = "") -> Dict[str, Any]:
     prefix_length = len(prefix)

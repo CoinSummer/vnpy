@@ -83,8 +83,8 @@ class SpreadEngine(BaseEngine):
             gateway_name=APP_NAME
         )
         event = Event(EVENT_SPREAD_LOG, log)
-        # self.send_slack(msg)
         self.event_engine.put(event)
+        # add send_slack info
         self.send_slack(msg, APP_NAME)
 
 
@@ -508,6 +508,7 @@ class SpreadAlgoEngine:
     def put_algo_event(self, algo: SpreadAlgoTemplate) -> None:
         """"""
         event = Event(EVENT_SPREAD_ALGO, algo)
+        # print(f"spread +trading {algo.__dict__}")
         self.event_engine.put(event)
 
     def write_algo_log(self, algo: SpreadAlgoTemplate, msg: str) -> None:

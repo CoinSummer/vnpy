@@ -78,6 +78,7 @@ class RpcServer:
         rep_address: str, 
         pub_address: str,
         server_secretkey_path: str = Path.cwd().joinpath("certificates/server.key_secret")
+        # server_secretkey_path: str = ""
     ) -> None:
 
         """
@@ -85,7 +86,7 @@ class RpcServer:
         """
         if self.__active:
             return
-        print(f"server{server_secretkey_path}")
+        # print(f"server {server_secretkey_path}")
         # Start authenticator
         if server_secretkey_path:
             self.__authenticator = ThreadAuthenticator(self.__context)
@@ -174,6 +175,11 @@ class RpcServer:
         """
         Publish data
         """
+        # rpc sever 推送不推送 spread algo 信息
+        if topic is not KEEP_ALIVE_TOPIC:
+            if data.type is 'eSpreadAlgo':
+                # print(f" topic -> {topic} show  {data.data.algo_engine.__dict__}")
+                return
         self.__socket_pub.send_pyobj([topic, data])
 
     def register(self, func: Callable) -> None:
