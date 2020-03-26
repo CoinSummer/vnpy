@@ -871,7 +871,9 @@ def _parse_order_info(order_info, gateway_name: str):
         traded=int(order_info["filled_qty"]),
         price=float(order_info["price"]),
         volume=float(order_info["size"]),
-        time=_parse_timestamp(order_info["timestamp"]).strftime("%H:%M:%S"),
+        # time=_parse_timestamp(order_info["timestamp"]).strftime("%Y-%m-%d %H:%M:%S"),
+        # time=datetime.strptime(order_info["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ"),
+        time= order_info["timestamp"],
         status=STATUS_OKEXS2VT[order_info["status"]],
         gateway_name=gateway_name,
     )

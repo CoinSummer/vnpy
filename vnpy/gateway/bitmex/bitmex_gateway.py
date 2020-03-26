@@ -747,7 +747,7 @@ class BitmexWebsocketApi(WebsocketClient):
             direction=DIRECTION_BITMEX2VT[d["side"]],
             price=d["lastPx"],
             volume=d["lastQty"],
-            time=d["timestamp"][11:19],
+            time=d["timestamp"],
             gateway_name=self.gateway_name,
         )
 
@@ -781,7 +781,7 @@ class BitmexWebsocketApi(WebsocketClient):
                 direction=DIRECTION_BITMEX2VT[side],
                 price=d["price"],
                 volume=d["orderQty"],
-                time=d["timestamp"][11:19],
+                time=d["timestamp"],
                 gateway_name=self.gateway_name,
             )
             self.orders[sysid] = order
