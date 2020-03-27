@@ -72,18 +72,21 @@ class RpcServer:
         """"""
         return self.__active
 
+
     def start(
         self, 
         rep_address: str, 
         pub_address: str,
-        server_secretkey_path: str = ""
+        server_secretkey_path: str = Path.cwd().joinpath("certificates/server.key_secret")
+        # server_secretkey_path: str = ""
     ) -> None:
+
         """
         Start RpcServer
         """
         if self.__active:
             return
-
+        # print(f"server {server_secretkey_path}")
         # Start authenticator
         if server_secretkey_path:
             self.__authenticator = ThreadAuthenticator(self.__context)
@@ -172,6 +175,11 @@ class RpcServer:
         """
         Publish data
         """
+        # rpc sever 推送不推送 spread algo 信息
+        if topic is not KEEP_ALIVE_TOPIC:
+            if data.type is 'eSpreadAlgo':
+                # print(f" topic -> {topic} show  {data.data.algo_engine.__dict__}")
+                return
         self.__socket_pub.send_pyobj([topic, data])
 
     def register(self, func: Callable) -> None:
@@ -239,8 +247,11 @@ class RpcClient:
         self, 
         req_address: str, 
         sub_address: str,
-        client_secretkey_path: str = "",
-        server_publickey_path: str = ""
+        client_secretkey_path: str = Path.cwd().joinpath("certificates/client.key_secret"),
+        server_publickey_path: str = Path.cwd().joinpath("certificates/server.key")
+        # client_secretkey_path: str =  "",
+        # server_publickey_path: str =  ""
+
     ) -> None:
         """
         Start RpcClient
@@ -248,6 +259,8 @@ class RpcClient:
         if self.__active:
             return
 
+
+        print(client_secretkey_path, server_publickey_path)
         # Start authenticator
         if client_secretkey_path and server_publickey_path:
             self.__authenticator = ThreadAuthenticator(self.__context)
@@ -305,12 +318,12 @@ class RpcClient:
 
         while self.__active:
             if not self.__socket_sub.poll(pull_tolerance):
+                print(pull_tolerance)
                 self._on_unexpected_disconnected()
                 continue
 
             # Receive data from subscribe socket
             topic, data = self.__socket_sub.recv_pyobj(flags=NOBLOCK)
-
             if topic == KEEP_ALIVE_TOPIC:
                 self._last_received_ping = data
             else:

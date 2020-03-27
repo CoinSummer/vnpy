@@ -66,14 +66,16 @@ class BacktesterManager(QtWidgets.QWidget):
         # Setting Part
         self.class_combo = QtWidgets.QComboBox()
 
-        self.symbol_line = QtWidgets.QLineEdit("IF88.CFFEX")
+        # self.symbol_line = QtWidgets.QLineEdit("IF88.CFFEX")
+
+        self.symbol_line = QtWidgets.QLineEdit("LTC-USDT.OKEX")
 
         self.interval_combo = QtWidgets.QComboBox()
         for inteval in Interval:
             self.interval_combo.addItem(inteval.value)
 
         end_dt = datetime.now()
-        start_dt = end_dt - timedelta(days=3 * 365)
+        start_dt = end_dt - timedelta(days=1 * 365)
 
         self.start_date_edit = QtWidgets.QDateEdit(
             QtCore.QDate(

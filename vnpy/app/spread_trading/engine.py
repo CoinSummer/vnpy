@@ -19,6 +19,7 @@ from vnpy.trader.object import (
     SubscribeRequest, OrderRequest
 )
 from vnpy.trader.constant import (
+
     Direction, Offset, OrderType, Interval
 )
 from vnpy.trader.converter import OffsetConverter
@@ -31,7 +32,8 @@ from .base import (
     load_bar_data, load_tick_data
 )
 from .template import SpreadAlgoTemplate, SpreadStrategyTemplate
-from .algo import SpreadTakerAlgo
+from .algo import SpreadTakerAlgo, SpreadMakerAlgo
+
 
 
 APP_NAME = "SpreadTrading"
@@ -82,7 +84,15 @@ class SpreadEngine(BaseEngine):
         )
         event = Event(EVENT_SPREAD_LOG, log)
         self.event_engine.put(event)
+        # add send_slack info
+        self.send_slack(msg, APP_NAME)
 
+
+    def send_slack(self, msg: str, category: str):
+        """
+              Send Slack .
+        """
+        self.main_engine.send_slack(msg, category)
 
 class SpreadDataEngine:
     """"""
@@ -95,6 +105,7 @@ class SpreadDataEngine:
         self.event_engine: EventEngine = spread_engine.event_engine
 
         self.write_log = spread_engine.write_log
+        # self.slack_send = spread_engine.send_slack
 
         self.legs: Dict[str, LegData] = {}          # vt_symbol: leg
         self.spreads: Dict[str, SpreadData] = {}    # name: spread
@@ -171,6 +182,7 @@ class SpreadDataEngine:
 
         for spread in self.symbol_spread_map[tick.vt_symbol]:
             spread.calculate_price()
+            # print(f"engine process tick event {spread.__dict__}")
             self.put_data_event(spread)
 
     def process_position_event(self, event: Event) -> None:
@@ -181,7 +193,6 @@ class SpreadDataEngine:
         if not leg:
             return
         leg.update_position(position)
-
         for spread in self.symbol_spread_map[position.vt_symbol]:
             spread.calculate_pos()
             self.put_pos_event(spread)
@@ -325,7 +336,11 @@ class SpreadDataEngine:
 
 class SpreadAlgoEngine:
     """"""
-    algo_class = SpreadTakerAlgo
+    algo_class_taker = SpreadTakerAlgo
+    algo_class_maker = SpreadMakerAlgo
+    # algo_class = algo_class_maker
+    algo_class = algo_class_taker
+
 
     def __init__(self, spread_engine: SpreadEngine):
         """"""
@@ -437,9 +452,10 @@ class SpreadAlgoEngine:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float
     ) -> str:
         # Find spread object
         spread = self.spreads.get(spread_name, None)
@@ -463,7 +479,8 @@ class SpreadAlgoEngine:
             volume,
             payup,
             interval,
-            lock
+            lock,
+            spread_rate
         )
         self.algos[algoid] = algo
 
@@ -491,6 +508,7 @@ class SpreadAlgoEngine:
     def put_algo_event(self, algo: SpreadAlgoTemplate) -> None:
         """"""
         event = Event(EVENT_SPREAD_ALGO, algo)
+        # print(f"spread +trading {algo.__dict__}")
         self.event_engine.put(event)
 
     def write_algo_log(self, algo: SpreadAlgoTemplate, msg: str) -> None:
@@ -713,9 +731,10 @@ class SpreadStrategyEngine:
         """"""
         spread = event.data
         strategies = self.spread_strategy_map[spread.name]
-
+        # print(f"xxxxx  {spread.__dict__}")
         for strategy in strategies:
             if strategy.inited:
+                # print(f"engine spread_data_event {strategy.on_spread_data.__dict__}")
                 self.call_strategy_func(strategy, strategy.on_spread_data)
 
     def process_spread_pos_event(self, event: Event):
@@ -730,6 +749,7 @@ class SpreadStrategyEngine:
     def process_spread_algo_event(self, event: Event):
         """"""
         algo = event.data
+        # print(f" process spread algo {algo.spread.__dict__}")
         strategy = self.algo_strategy_map.get(algo.algoid, None)
 
         if strategy:
@@ -859,6 +879,7 @@ class SpreadStrategyEngine:
             return
 
         self.call_strategy_func(strategy, strategy.on_start)
+        # print(f"engine strategy {strategy.__dict__}")
         strategy.trading = True
 
         self.put_strategy_event(strategy)
@@ -920,9 +941,10 @@ class SpreadStrategyEngine:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
-        lock: bool
+        spread_rate: float,
+        lock: bool,
     ) -> str:
         """"""
         algoid = self.spread_engine.start_algo(
@@ -932,12 +954,13 @@ class SpreadStrategyEngine:
             price,
             volume,
             payup,
+            spread_rate,
             interval,
-            lock
+            lock,
+
         )
 
         self.algo_strategy_map[algoid] = strategy
-
         return algoid
 
     def stop_algo(self, strategy: SpreadStrategyTemplate, algoid: str):

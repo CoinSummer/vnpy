@@ -9,6 +9,8 @@ from vnpy.trader.engine import BaseEngine, MainEngine
 from vnpy.trader.utility import load_json, save_json
 from vnpy.trader.object import LogData
 
+import os
+
 APP_NAME = "RpcService"
 
 EVENT_RPC_LOG = "eRpcLog"
@@ -66,7 +68,7 @@ class RpcEngine(BaseEngine):
         """"""
         setting = {
             "rep_address": self.rep_address,
-            "pub_address": self.pub_address
+            "pub_address": self.pub_address,
         }
         save_json(self.setting_filename, setting)
 
@@ -78,7 +80,7 @@ class RpcEngine(BaseEngine):
 
         self.rep_address = rep_address
         self.pub_address = pub_address
-
+        # print(f' engin {os.path.abspath(os.path.join(os.path.dirname(__file__),"../../.."))}')
         try:
             self.server.start(rep_address, pub_address)
         except:  # noqa

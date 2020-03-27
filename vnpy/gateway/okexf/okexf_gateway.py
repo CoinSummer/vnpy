@@ -427,7 +427,8 @@ class OkexfRestApi(RestClient):
                 traded=int(order_data["filled_qty"]),
                 price=float(order_data["price"]),
                 volume=float(order_data["size"]),
-                time=utc_to_local(order_data["timestamp"]).strftime("%H:%M:%S"),
+                # time=utc_to_local(order_data["timestamp"]).strftime("%H:%M:%S"),
+                time=order_data["timestamp"],
                 status=STATUS_OKEXF2VT[order_data["status"]],
                 gateway_name=self.gateway_name,
             )
@@ -833,7 +834,8 @@ class OkexfWebsocketApi(WebsocketClient):
             price=float(d["price"]),
             volume=float(d["size"]),
             traded=float(d["filled_qty"]),
-            time=utc_to_local(d["timestamp"]).strftime("%H:%M:%S"),
+            # time=utc_to_local(d["timestamp"]).strftime("%H:%M:%S"),
+            time=d["timestamp"],
             status=STATUS_OKEXF2VT[d["status"]],
             gateway_name=self.gateway_name,
         )

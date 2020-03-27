@@ -27,9 +27,10 @@ class SpreadAlgoTemplate:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool,
+        spread_rate: float = 0
     ):
         """"""
         self.algo_engine = algo_engine
@@ -42,9 +43,11 @@ class SpreadAlgoTemplate:
         self.direction: Direction = direction
         self.price: float = price
         self.volume: float = volume
-        self.payup: int = payup
+        # self.payup: int = payup
+        self.payup: float = payup
         self.interval = interval
         self.lock = lock
+        self.spread_rate: float = spread_rate # spread_rate for traded algo
 
         if direction == Direction.LONG:
             self.target = volume
@@ -59,7 +62,7 @@ class SpreadAlgoTemplate:
         self.leg_traded: Dict[str, float] = defaultdict(int)
         self.leg_orders: Dict[str, List[str]] = defaultdict(list)
 
-        self.write_log("算法已启动")
+        self.write_log(f"算法已启动 方向：{direction}, 预期差价: {self.price}, 差价比: {spread_rate}")
 
     def is_active(self):
         """"""
@@ -136,14 +139,24 @@ class SpreadAlgoTemplate:
 
         if trade.direction == Direction.LONG:
             self.leg_traded[trade.vt_symbol] += trade_volume
+            self.spread_price = self.spread.ask_price
+            self.spread_r = self.spread.ask_spread_rate
         else:
             self.leg_traded[trade.vt_symbol] -= trade_volume
+            self.spread_price = self.spread.bid_price
+            self.spread_r = self.spread.bid_spread_rate
 
-        msg = "委托成交，{}，{}，{}@{}".format(
+        # print(self.spread.__dict__)
+        # print(self.spread.legs[trade.vt_symbol].net_pos)
+        msg = "委托成交，{}，{}，{}@{}\n差价 {}, 差价比 {},\n 持仓量 {} , 持仓均价 {}".format(
             trade.vt_symbol,
             trade.direction,
             trade.volume,
-            trade.price
+            trade.price,
+            self.spread_price,
+            self.spread_r,
+            self.spread.legs[trade.vt_symbol].net_pos,
+            self.spread.legs[trade.vt_symbol].net_pos_price
         )
         self.write_log(msg)
 
@@ -177,6 +190,7 @@ class SpreadAlgoTemplate:
     def write_log(self, msg: str):
         """"""
         self.algo_engine.write_algo_log(self, msg)
+
 
     def send_long_order(self, vt_symbol: str, price: float, volume: float):
         """"""
@@ -219,6 +233,7 @@ class SpreadAlgoTemplate:
         )
 
         self.leg_orders[vt_symbol].extend(vt_orderids)
+
 
         msg = "发出委托，{}，{}，{}@{}".format(
             vt_symbol,
@@ -483,15 +498,18 @@ class SpreadStrategyTemplate:
         direction: Direction,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
         lock: bool,
+        spread_rate: float,
         offset: Offset
     ) -> str:
         """"""
         if not self.trading:
             return ""
 
+        # print(f"self start_aglo info {self.spread_name, direction, offset, price,}")
+        # print(self.spread_name)
         algoid: str = self.strategy_engine.start_algo(
             self,
             self.spread_name,
@@ -500,10 +518,12 @@ class SpreadStrategyTemplate:
             price,
             volume,
             payup,
+            spread_rate,
             interval,
-            lock
+            lock,
         )
 
+        # print(f"start algo {algoid}")
         self.algoids.add(algoid)
 
         return algoid
@@ -512,32 +532,49 @@ class SpreadStrategyTemplate:
         self,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
+        spread_rate: float = 0,
         lock: bool = False,
-        offset: Offset = Offset.NONE
+        offset: Offset = Offset.NONE,
     ) -> str:
-        """"""
+
         return self.start_algo(
             Direction.LONG, price, volume,
-            payup, interval, lock, offset
+            payup, interval, spread_rate, lock, offset
         )
 
     def start_short_algo(
         self,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
+        spread_rate: float = 0,
         lock: bool = False,
         offset: Offset = Offset.NONE
+    ) -> str:
+
+        return self.start_algo(
+            Direction.SHORT, price, volume,
+            payup, interval, spread_rate, lock,  offset
+        )
+
+    def start_cover_algo(
+            self,
+            price: float,
+            volume: float,
+            payup: float,
+            interval: int,
+            spread_rate: float,
+            lock: bool = False,
+            offset: Offset = Offset.CLOSE
     ) -> str:
         """"""
         return self.start_algo(
             Direction.SHORT, price, volume,
-            payup, interval, lock, offset
+            payup, interval, spread_rate, lock, offset
         )
-
     def stop_algo(self, algoid: str):
         """"""
         if not self.trading:
@@ -588,7 +625,12 @@ class SpreadStrategyTemplate:
             offset,
             lock
         )
-
+        print({ vt_symbol,
+            price,
+            volume,
+            direction,
+            offset,
+            lock})
         for vt_orderid in vt_orderids:
             self.vt_orderids.add(vt_orderid)
 
@@ -616,6 +658,7 @@ class SpreadStrategyTemplate:
 
     def get_spread_tick(self) -> TickData:
         """"""
+        # print(f"tick template data {self.spread.to_tick().__dict__}")
         return self.spread.to_tick()
 
     def get_spread_pos(self) -> float:
@@ -630,6 +673,11 @@ class SpreadStrategyTemplate:
             return None
 
         return leg.tick
+
+    def get_active_leg(self):
+        for leg in self.spread.legs.values():
+            # print(f"legs {leg.__dict__}")
+            pass
 
     def get_leg_pos(self, vt_symbol: str, direction: Direction = Direction.NET) -> float:
         """"""

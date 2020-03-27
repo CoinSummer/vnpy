@@ -107,7 +107,9 @@ class SpreadDataMonitor(BaseMonitor):
         "name": {"display": "名称", "cell": BaseCell, "update": False},
         "bid_volume": {"display": "买量", "cell": BidCell, "update": True},
         "bid_price": {"display": "买价", "cell": BidCell, "update": True},
+        "bid_spread_rate": {"display": "买差比", "cell": BidCell, "update": True},
         "ask_price": {"display": "卖价", "cell": AskCell, "update": True},
+        "ask_spread_rate": {"display": "卖差比", "cell": AskCell, "update": True},
         "ask_volume": {"display": "卖量", "cell": AskCell, "update": True},
         "net_pos": {"display": "净仓", "cell": PnlCell, "update": True},
         "datetime": {"display": "时间", "cell": TimeCell, "update": True},
@@ -393,6 +395,11 @@ class SpreadDataDialog(QtWidgets.QDialog):
             "0.00001",
             "0.000001",
         ])
+        self.trading_type = QtWidgets.QComboBox()
+        self.trading_type.addItems([
+            "price",
+            "rate"
+        ])
 
         self.grid = QtWidgets.QGridLayout()
 
@@ -408,12 +415,14 @@ class SpreadDataDialog(QtWidgets.QDialog):
         grid.addWidget(self.active_line, 1, 1, 1, 4)
         grid.addWidget(Label("最小交易量"), 2, 0)
         grid.addWidget(self.min_volume_combo, 2, 1, 1, 4)
+        grid.addWidget(Label("交易方式"), 3, 0)
+        grid.addWidget(self.trading_type, 3, 1, 1, 4)
 
-        grid.addWidget(Label(""), 3, 0)
-        grid.addWidget(Label("本地代码"), 4, 1)
-        grid.addWidget(Label("价格乘数"), 4, 2)
-        grid.addWidget(Label("交易乘数"), 4, 3)
-        grid.addWidget(Label("合约模式"), 4, 4)
+        grid.addWidget(Label(""), 4, 0)
+        grid.addWidget(Label("本地代码"), 5, 1)
+        grid.addWidget(Label("价格乘数"), 5, 2)
+        grid.addWidget(Label("交易乘数"), 5, 3)
+        grid.addWidget(Label("合约模式"), 5, 4)
 
         int_validator = QtGui.QIntValidator()
 
@@ -440,7 +449,7 @@ class SpreadDataDialog(QtWidgets.QDialog):
                 "symbol": symbol_line,
                 "price": price_line,
                 "trading": trading_line,
-                "inverse": inverse_combo
+                "inverse": inverse_combo,
             }
             self.leg_widgets.append(d)
 
@@ -463,6 +472,7 @@ class SpreadDataDialog(QtWidgets.QDialog):
 
         active_symbol = self.active_line.text()
         min_volume = float(self.min_volume_combo.currentText())
+        trading_type = self.trading_type
 
         leg_settings = {}
         for d in self.leg_widgets:
@@ -480,7 +490,8 @@ class SpreadDataDialog(QtWidgets.QDialog):
                     "vt_symbol": vt_symbol,
                     "price_multiplier": price_multiplier,
                     "trading_multiplier": trading_multiplier,
-                    "inverse_contract": inverse_contract
+                    "inverse_contract": inverse_contract,
+                    "trading_type": trading_type
                 }
             except ValueError:
                 pass

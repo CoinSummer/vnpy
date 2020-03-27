@@ -7,6 +7,10 @@ from vnpy.trader.utility import round_to
 from .template import SpreadAlgoTemplate
 from .base import SpreadData
 
+import numpy as np
+import heapq
+import numba
+
 
 class SpreadTakerAlgo(SpreadAlgoTemplate):
     """"""
@@ -21,19 +25,24 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float
     ):
         """"""
         super().__init__(
             algo_engine, algoid, spread,
             direction, offset, price, volume,
-            payup, interval, lock
+            payup, interval, lock, spread_rate
         )
 
         self.cancel_interval: int = 2
         self.timer_count: int = 0
+        self.spread_datas = []
+        self.bid_spread_datas = []
+        self.ask_spread_datas = []
+
 
     def on_tick(self, tick: TickData):
         """"""
@@ -51,12 +60,74 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
             return
 
         # Otherwise check if should take active leg
-        if self.direction == Direction.LONG:
-            if self.spread.ask_price <= self.price:
-                self.take_active_leg()
+        # print(f"on tick info {self.spread.__dict__}")
+        if self.spread.trading_type == "price":
+
+
+            if self.direction == Direction.LONG:
+                if len(self.ask_spread_datas) > 50:
+                    self.ask_spread_datas.pop(0)
+                    self.ask_spread_datas.append(self.spread.ask_price)
+                else:
+                    self.ask_spread_datas.append(self.spread.ask_price)
+
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(np.array(self.ask_spread_datas)) #  使用numba 计算分位数
+
+
+                if self.spread.ask_price <= self.price and (cal_spread_limit[0] <= self.spread.ask_price <= cal_spread_limit[1]):
+                    self.take_active_leg()
+            else:
+                if len(self.bid_spread_datas) > 50:
+                    self.bid_spread_datas.pop(0)
+                    self.bid_spread_datas.append(self.spread.bid_price)
+                else:
+                    self.bid_spread_datas.append(self.spread.bid_price)
+
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                # cal_spread_limit = self.cal_std_stream(self.bid_spread_datas)
+
+                cal_spread_limit = self.cal_qurtile(np.array(self.bid_spread_datas))
+
+                if self.spread.bid_price >= self.price and (cal_spread_limit[0] <= self.spread.ask_price <= cal_spread_limit[1]):
+                    self.take_active_leg()
         else:
-            if self.spread.bid_price >= self.price:
-                self.take_active_leg()
+            # print(f" 使用 rate 交易 taker")
+            """使用 spread rate 计算挂单差价"""
+            # print("spread rate 使用 taker")
+            # print(f"spread_rate {self.spread_rate} active_ask_price {active_leg.ask_price}  spread_ask_rate {self.spread.ask_spread_rate} bid_price {active_leg.bid_price} spread_bid_rate {spread.bid_spread_rate}")
+
+            if self.direction == Direction.LONG:
+
+                if len(self.ask_spread_datas) > 50:
+                    self.ask_spread_datas.pop(0)
+                    self.ask_spread_datas.append(self.spread.ask_spread_rate)
+                else:
+                    self.ask_spread_datas.append(self.spread.ask_spread_rate)
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                # print(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(np.array(self.ask_spread_datas))
+
+
+                if self.spread.ask_spread_rate <= self.spread_rate and (cal_spread_limit[0] <= self.spread.ask_spread_rate <= cal_spread_limit[1]):
+                    self.take_active_leg()
+            else:
+                if len(self.bid_spread_datas) > 50:
+                    self.bid_spread_datas.pop(0)
+                    self.bid_spread_datas.append(self.spread.bid_spread_rate)
+                else:
+                    self.bid_spread_datas.append(self.spread.bid_spread_rate)
+                # spread_std = np.std(self.spread_datas, ddof=1)
+                # cal_spread_limit = self.cal_std_stream(self.ask_spread_datas)
+                cal_spread_limit = self.cal_qurtile(np.array(self.bid_spread_datas))
+
+                # print(f"bidspread_rate {self.spread.bid_spread_rate} , spread_rate {self.spread_rate} , "
+                #       f"cal_spread_limit {cal_spread_limit}, spread_rate {self.spread_rate} {(cal_spread_limit[0] <= self.spread.bid_spread_rate <= cal_spread_limit[1] )}")
+                if self.spread.bid_spread_rate >= self.spread_rate and (cal_spread_limit[0] <= self.spread.bid_spread_rate <= cal_spread_limit[1] ):
+
+                    self.take_active_leg()
 
     def on_order(self, order: OrderData):
         """"""
@@ -98,12 +169,184 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
             self.spread.active_leg.vt_symbol,
             spread_order_volume
         )
-
         # Send active leg order
         self.send_leg_order(
             self.spread.active_leg.vt_symbol,
             leg_order_volume
         )
+
+    def hedge_passive_legs(self):
+        """
+        Send orders to hedge all passive legs.
+        """
+        # Calcualte spread volume to hedge
+        active_leg = self.spread.active_leg
+        active_traded = self.leg_traded[active_leg.vt_symbol]
+        active_traded = round_to(active_traded, self.spread.min_volume)
+
+        hedge_volume = self.spread.calculate_spread_volume(
+            active_leg.vt_symbol,
+            active_traded
+        )
+        # Calculate passive leg target volume and do hedge
+        for leg in self.spread.passive_legs:
+            passive_traded = self.leg_traded[leg.vt_symbol]
+            passive_traded = round_to(passive_traded, self.spread.min_volume)
+
+            passive_target = self.spread.calculate_leg_volume(
+                leg.vt_symbol,
+                hedge_volume
+            )
+
+            leg_order_volume = passive_target - passive_traded
+            if leg_order_volume:
+                self.send_leg_order(leg.vt_symbol, leg_order_volume)
+
+    def send_leg_order(self, vt_symbol: str, leg_volume: float):
+        """"""
+        leg = self.spread.legs[vt_symbol]
+        leg_tick = self.get_tick(vt_symbol)
+        leg_contract = self.get_contract(vt_symbol)
+
+        if leg_volume > 0:
+            price = leg_tick.ask_price_1 + leg_contract.pricetick * self.payup
+            self.send_long_order(leg.vt_symbol, price, abs(leg_volume))
+        elif leg_volume < 0:
+            price = leg_tick.bid_price_1 - leg_contract.pricetick * self.payup
+
+            self.send_short_order(leg.vt_symbol, price, abs(leg_volume))
+
+    @staticmethod
+    @numba.njit
+    def cal_qurtile(arr):
+        """
+        计算四分位上下限 过滤异常差价波动
+        return [上限， 下限]
+        """
+        q = np.quantile(arr, [0.25, 0.75])
+        q3 = q[1]
+        q1 = q[0]
+        iqr = q3 - q1
+        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
+
+class SpreadMakerAlgo(SpreadAlgoTemplate):
+    """"""
+    algo_name = "SpreadMaker"
+
+    def __init__(
+        self,
+        algo_engine: Any,
+        algoid: str,
+        spread: SpreadData,
+        direction: Direction,
+        offset: Offset,
+        price: float,
+        volume: float,
+        payup: float,
+        interval: int,
+        lock: bool,
+        spread_rate: float
+
+    ):
+        """"""
+        super().__init__(
+            algo_engine, algoid, spread,
+            direction, offset, price, volume,
+            payup, interval, lock, spread_rate
+        )
+
+        self.cancel_interval: int = 2
+        self.timer_count: int = 0
+
+        self.active_quote_price: float = 0
+
+        active_contract = self.get_contract(spread.active_leg.vt_symbol)
+        self.active_price_tick: float = active_contract.pricetick
+
+    def on_tick(self, tick: TickData):
+        """"""
+        # Return if tick not inited
+        if not self.spread.bid_volume or not self.spread.ask_volume:
+            return
+
+        # Return if there are any existing orders
+        if not self.check_order_finished():
+            return
+
+        # Hedge if active leg is not fully hedged
+        if not self.check_hedge_finished():
+            self.hedge_passive_legs()
+            return
+
+        # Check if re-quote is required
+        new_quote_price = self.calculate_quote_price()
+
+        if self.active_quote_price:
+            price_change = self.active_quote_price - new_quote_price
+            if abs(price_change) > (self.active_price_tick * self.payup):
+                self.cancel_all_order()
+
+            # Do not repeat sending quote orders
+            return
+
+        # Otherwise send active leg quote order
+        self.quote_active_leg(new_quote_price)
+
+    def on_order(self, order: OrderData):
+        """"""
+        # Only care active leg order update
+        if order.vt_symbol != self.spread.active_leg.vt_symbol:
+            return
+
+        # Clear quote price record
+        if not order.is_active():
+            self.active_quote_price = 0
+
+        # Do nothing if still any existing orders
+        if not self.check_order_finished():
+            return
+
+        # Hedge passive legs if necessary
+        if not self.check_hedge_finished():
+            self.hedge_passive_legs()
+
+    def on_trade(self, trade: TradeData):
+        """"""
+        pass
+
+    def on_interval(self):
+        """"""
+        # Do nothing if only active leg quoting
+        if self.check_hedge_finished():
+            return
+
+        # Cancel old hedge orders
+        if not self.check_order_finished():
+            self.cancel_all_order()
+
+    def quote_active_leg(self, quote_price: float):
+        """"""
+        # Calculate spread order volume of new round trade
+        spread_order_volume = self.target - self.traded
+
+        # localize object
+        spread = self.spread
+
+        # Calculate active leg order volume
+        leg_order_volume = spread.calculate_leg_volume(
+            spread.active_leg.vt_symbol,
+            spread_order_volume
+        )
+
+        # Send active leg order
+        self.send_leg_order(
+            spread.active_leg.vt_symbol,
+            leg_order_volume,
+            quote_price
+        )
+
+        # Record current quote price
+        self.active_quote_price = quote_price
 
     def hedge_passive_legs(self):
         """
@@ -133,15 +376,85 @@ class SpreadTakerAlgo(SpreadAlgoTemplate):
             if leg_order_volume:
                 self.send_leg_order(leg.vt_symbol, leg_order_volume)
 
-    def send_leg_order(self, vt_symbol: str, leg_volume: float):
+    def send_leg_order(self, vt_symbol: str, leg_volume: float, leg_price: float = 0):
         """"""
         leg = self.spread.legs[vt_symbol]
         leg_tick = self.get_tick(vt_symbol)
         leg_contract = self.get_contract(vt_symbol)
 
         if leg_volume > 0:
-            price = leg_tick.ask_price_1 + leg_contract.pricetick * self.payup
+            if leg_price:
+                price = leg_price
+            else:
+                price = leg_tick.ask_price_1 + leg_contract.pricetick * self.payup
             self.send_long_order(leg.vt_symbol, price, abs(leg_volume))
         elif leg_volume < 0:
-            price = leg_tick.bid_price_1 - leg_contract.pricetick * self.payup
+            if leg_price:
+                price = leg_price
+            else:
+                price = leg_tick.bid_price_1 - leg_contract.pricetick * self.payup
             self.send_short_order(leg.vt_symbol, price, abs(leg_volume))
+
+    def calculate_quote_price(self) -> float:
+        """"""
+        # Localize object
+        spread = self.spread
+        active_leg = spread.active_leg
+
+        # Calculate active leg quote price
+        price_multiplier = spread.price_multipliers[
+            spread.active_leg.vt_symbol
+        ]
+        if self.spread.trading_type == "price":
+            # 差价使用
+            if self.direction == Direction.LONG:
+                if price_multiplier > 0:
+                    quote_price = (self.price - spread.ask_price) / \
+                        price_multiplier + active_leg.ask_price
+                else:
+                    quote_price = (self.price - spread.ask_price) / \
+                        price_multiplier + active_leg.bid_price
+            else:
+                ""
+                if price_multiplier > 0:
+                    quote_price = (self.price - spread.bid_price) / \
+                        price_multiplier + active_leg.ask_price
+                else:
+                    quote_price = (self.price - spread.bid_price) / \
+                        price_multiplier + active_leg.bid_price
+        else:
+            # 差价比使用
+            if self.direction == Direction.LONG:
+
+                """使用 spread rate 计算挂单差价"""
+                # print("spread rate 使用 maker")
+                # print(f"spread_rate {self.spread_rate} active_ask_price {active_leg.ask_price}  spread_ask_rate { spread.ask_spread_rate} bid_price {active_leg.bid_price} spread_bid_rate {spread.bid_spread_rate}")
+
+                if price_multiplier > 0:
+                    quote_price = ((self.spread_rate/100)*active_leg.ask_price - (spread.ask_spread_rate/100)*active_leg.ask_price) / \
+                                    price_multiplier + active_leg.ask_price
+                    print(f"active_leg {active_leg.vt_symbol} maker ask price {quote_price} LONG")
+                else:
+                    quote_price = ((self.spread_rate/100)*active_leg.ask_price - (spread.ask_spread_rate/100)*active_leg.ask_price) / \
+                                    price_multiplier + active_leg.bid_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} LONG")
+
+
+            else:
+                if price_multiplier > 0:
+
+                    quote_price = ((self.spread_rate/100) * active_leg.bid_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                                  price_multiplier + active_leg.ask_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
+
+                else:
+                    quote_price = ((self.spread_rate/100) * active_leg.bid_price - (spread.bid_spread_rate/100)*active_leg.bid_price) / \
+                                  price_multiplier + active_leg.bid_price
+                    print(f"active_leg {active_leg.vt_symbol} maker bid price {quote_price} SHORT")
+
+
+        # Round price to pricetick of active leg
+        contract = self.get_contract(active_leg.vt_symbol)
+        quote_price = round_to(quote_price, contract.pricetick)
+
+        return quote_price

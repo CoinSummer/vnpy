@@ -6,6 +6,7 @@ from logging import CRITICAL
 from typing import Dict, Any
 
 from .utility import load_json
+import requests
 
 SETTINGS: Dict[str, Any] = {
     "font.family": "Arial",
@@ -26,19 +27,25 @@ SETTINGS: Dict[str, Any] = {
     "rqdata.username": "",
     "rqdata.password": "",
 
-    "database.driver": "sqlite",  # see database.Driver
-    "database.database": "database.db",  # for sqlite, use this as filepath
-    "database.host": "localhost",
-    "database.port": 3306,
-    "database.user": "root",
+    "database.driver": "mongodb",  # see database.Driver
+    # "database.database": "database.db",  # for sqlite, use this as filepath
+    "database.database": "vnpy",  # for sqlite, use this as filepath
+    # "database.database": "",  # for sqlite, use this as filepath
+    "database.host": "127.0.0.1",
+    "database.port": 27017,
+    "database.user": "",
     "database.password": "",
-    "database.authentication_source": "admin",  # for mongodb
+    "database.authentication_source": "vnpy",  # for mongodb
+
+    "slack.url": "http://medivh.dev.csiodev.com/api/vnpy/order/status/",
+    "server.ip": requests.get(url="http://myip.ipip.net").text,
+    "server.name": "BM跨期交易服务器"
 }
 
 # Load global setting from json file.
 SETTING_FILENAME: str = "vt_setting.json"
 SETTINGS.update(load_json(SETTING_FILENAME))
-
+print(f'ip 信息获取 {SETTINGS["server.ip"]}')
 
 def get_settings(prefix: str = "") -> Dict[str, Any]:
     prefix_length = len(prefix)

@@ -53,6 +53,8 @@ class DbBarData(Document):
     low_price: float = FloatField()
     close_price: float = FloatField()
 
+    spread_rate:  float = FloatField()
+
     meta = {
         "indexes": [
             {
@@ -79,6 +81,7 @@ class DbBarData(Document):
         db_bar.high_price = bar.high_price
         db_bar.low_price = bar.low_price
         db_bar.close_price = bar.close_price
+        db_bar.spread_rate = bar.spread_rate
 
         return db_bar
 
@@ -97,6 +100,7 @@ class DbBarData(Document):
             high_price=self.high_price,
             low_price=self.low_price,
             close_price=self.close_price,
+            spread_rate=self.spread_rate,
             gateway_name="DB",
         )
         return bar
@@ -126,6 +130,12 @@ class DbTickData(Document):
     low_price: float = FloatField()
     close_price: float = FloatField()
     pre_close: float = FloatField()
+
+    spread_rate: float = FloatField()
+
+    bid_spread_rate: float = FloatField()
+    ask_spread_rate: float = FloatField()
+
 
     bid_price_1: float = FloatField()
     bid_price_2: float = FloatField()
@@ -181,6 +191,7 @@ class DbTickData(Document):
         db_tick.high_price = tick.high_price
         db_tick.low_price = tick.low_price
         db_tick.pre_close = tick.pre_close
+
 
         db_tick.bid_price_1 = tick.bid_price_1
         db_tick.ask_price_1 = tick.ask_price_1

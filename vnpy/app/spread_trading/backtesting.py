@@ -1,27 +1,118 @@
 from collections import defaultdict
 from datetime import date, datetime
+from threading import Thread
 from typing import Callable, Type
 
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pandas import DataFrame
+from queue import Queue, Empty
+
+import heapq
 
 from vnpy.trader.constant import (Direction, Offset, Exchange,
                                   Interval, Status)
 from vnpy.trader.object import TradeData, BarData, TickData
 
 from .template import SpreadStrategyTemplate, SpreadAlgoTemplate
-from .base import SpreadData, BacktestingMode, load_bar_data, load_tick_data
+from .base import SpreadData, BacktestingMode, load_bar_data, load_tick_data, EngineType
+
+
+# 添加引用
+from deap import creator, base, tools, algorithms
+from vnpy.trader.utility import round_to
+from itertools import product
+from functools import lru_cache
+from time import time
+import multiprocessing
+import random
+from vnpy.trader.database import database_manager
+import numba
+from numba.typed import List
 
 sns.set_style("whitegrid")
+
+# creatior base
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("Individual", list, fitness=creator.FitnessMax)
+
+class OptimizationSetting:
+    """
+    Setting for runnning optimization.
+    """
+
+    def __init__(self):
+        """"""
+        self.params = {}
+        self.target_name = ""
+
+    def add_parameter(
+        self, name: str, start: float, end: float = None, step: float = None
+    ):
+        """"""
+        if not end and not step:
+            self.params[name] = [start]
+            return
+
+        if start >= end:
+            print("参数优化起始点必须小于终止点")
+            return
+
+        if step <= 0:
+            print("参数优化步进必须大于0")
+            return
+
+        value = start
+        value_list = []
+
+        while value <= end:
+            value_list.append(value)
+            value += step
+
+        self.params[name] = value_list
+
+    def set_target(self, target_name: str):
+        """"""
+        self.target_name = target_name
+
+    def generate_setting(self):
+        """"""
+        keys = self.params.keys()
+        values = self.params.values()
+        products = list(product(*values))
+
+        settings = []
+        for p in products:
+            setting = dict(zip(keys, p))
+            settings.append(setting)
+
+        return settings
+
+    def generate_setting_ga(self):
+        """"""
+        settings_ga = []
+        settings = self.generate_setting()
+        for d in settings:
+            param = [tuple(i) for i in d.items()]
+            settings_ga.append(param)
+        return settings_ga
+
 
 
 class BacktestingEngine:
     """"""
 
     gateway_name = "BACKTESTING"
+    # 添加回撤模块
+    # engine_type = EngineType.BACKTESTING
 
+    DISPLAY_NAME_MAP = {
+        "总收益率": "total_return",
+        "夏普比率": "sharpe_ratio",
+        "收益回撤比": "return_drawdown_ratio",
+        "日均盈亏": "daily_net_pnl"
+    }
     def __init__(self):
         """"""
         self.spread: SpreadData = None
@@ -52,11 +143,18 @@ class BacktestingEngine:
 
         self.trade_count = 0
         self.trades = {}
+        self.orders = {}
 
         self.logs = []
 
         self.daily_results = {}
         self.daily_df = None
+
+        self.inverse = False
+
+        self.spread_datas = []
+        self.queue = Queue(11)
+
 
     def output(self, msg):
         """
@@ -201,6 +299,7 @@ class BacktestingEngine:
         start_pos = 0
 
         for daily_result in self.daily_results.values():
+            # print(f"daily reault {daily_result.__dict__}")
             daily_result.calculate_pnl(
                 pre_close,
                 start_pos,
@@ -395,10 +494,10 @@ class BacktestingEngine:
         balance_plot = plt.subplot(4, 1, 1)
         balance_plot.set_title("Balance")
         df["balance"].plot(legend=True)
-
         drawdown_plot = plt.subplot(4, 1, 2)
         drawdown_plot.set_title("Drawdown")
         drawdown_plot.fill_between(range(len(df)), df["drawdown"].values)
+
 
         pnl_plot = plt.subplot(4, 1, 3)
         pnl_plot.set_title("Daily Pnl")
@@ -445,6 +544,26 @@ class BacktestingEngine:
 
         self.update_daily_close(tick.last_price)
 
+
+    # @numba.jit(nopython=True)
+    # @numba.jit(debug=True)
+    # @numba.jit("float64(float64[:])", forceobj=True, nopython=True)
+    # @staticmethod
+    # @numba.jit("float64(float64[:])", forceobj=True, nopython=True,fastmath=True)
+    @staticmethod
+    @numba.jit
+    def cal_qurtile(arr):
+        """
+        计算四分位上下限 过滤异常差价波动
+        return [上限， 下限]
+        """
+        q = np.quantile(arr, [0.25, 0.75])
+        q3 = q[1]
+        q1 = q[0]
+        iqr = q3 - q1
+        return [(q1 - 1.5 * iqr), (q3 - 1.5 * iqr)]  # 下限 上线
+
+
     def cross_algo(self):
         """
         Cross limit order with last bar/tick data.
@@ -452,21 +571,84 @@ class BacktestingEngine:
         if self.mode == BacktestingMode.BAR:
             long_cross_price = self.bar.close_price
             short_cross_price = self.bar.close_price
+            cross_rate = self.bar.spread_rate
+
         else:
             long_cross_price = self.tick.ask_price_1
             short_cross_price = self.tick.bid_price_1
+            cross_rate = self.bar.spread_rate
 
+        if len(self.spread_datas) == 17:
+            self.spread_datas.pop(0)
+            self.spread_datas.append(cross_rate)
+            # print(self.spread_datas)
+        else:
+            self.spread_datas.append(cross_rate)
+
+        # if len(self.queue.queue) == 11:
+        #     self.queue.get()
+        #     self.queue.put(cross_rate)
+        # else:
+        #     self.queue.put(cross_rate)
+
+
+
+        # # 使用四分位上下限计算
+        # c_start = datetime.now()
+        #
+        cal_spread_limit = self.cal_qurtile(np.array(self.spread_datas))
+        # print(f"{self.bar.datetime}  四分位计算 {cal_spread_limit}  当前cross_rate {cross_rate} ")
+        #
+        # c_end = datetime.now()
+        # c_cost = (c_end - c_start)
+        # print(f"{self.bar.datetime}用时 {round(c_cost.microseconds, 5)}ms  四分位计算 {cal_spread_limit}  当前cross_rate {cross_rate} ")
+
+
+        # print(f"cross algo {self.bar.__dict__}")
         for algo in list(self.active_algos.values()):
             # Check whether limit orders can be filled.
-            long_cross = (
-                algo.direction == Direction.LONG
-                and algo.price >= long_cross_price
-            )
+            # print(f"algo value {algo.__dict__}")
+            # print(f"[algo info]  {algo.__dict__} {cross_rate} {long_cross_price}")
 
-            short_cross = (
-                algo.direction == Direction.SHORT
-                and algo.price <= short_cross_price
-            )
+            if algo.spread_rate == 0:
+
+                long_cross = (
+                    algo.direction == Direction.LONG
+                    and algo.price >= long_cross_price
+                    and long_cross_price > 0
+                    # and long_cross_price < cal_long_limit[1]
+                    # and long_cross_price > cal_long_limit[0]
+                )
+
+                short_cross = (
+                    algo.direction == Direction.SHORT
+                    and algo.price <= short_cross_price
+                    and short_cross_price > 0
+                    # and short_cross_price < cal_short_limit[1]
+                    # and short_cross_price > cal_short_limit[0]
+                )
+            else:
+
+                if not (cross_rate > cal_spread_limit[0] and cross_rate < cal_spread_limit[1]):
+                # if not (cross_rate > x_cal_spread_limit[0] and cross_rate < x_cal_spread_limit[1]):
+                        continue
+
+                long_cross = (
+                        algo.direction == Direction.LONG
+                        # and algo.price >= long_cross_price
+                        and long_cross_price > 0
+                        and algo.spread_rate >= cross_rate
+                )
+
+                # print(f"long cross {long_cross} {algo.direction} {algo.price} {long_cross_price}  {algo.spread_rate} {cross_rate}")
+
+                short_cross = (
+                        algo.direction == Direction.SHORT
+                        # and algo.price <= short_cross_price
+                        and short_cross_price > 0
+                        and algo.spread_rate <= cross_rate
+                )
+                # print(f"short cross {short_cross} {algo.direction} {algo.price} {short_cross_price}  {algo.spread_rate} {cross_rate}")
 
             if not long_cross and not short_cross:
                 continue
@@ -497,8 +679,11 @@ class BacktestingEngine:
                 offset=algo.offset,
                 price=trade_price,
                 volume=algo.volume,
-                time=self.datetime.strftime("%H:%M:%S"),
+                time=self.datetime.strftime("%Y-%m-%d %H:%M:%S"),
                 gateway_name=self.gateway_name,
+                spread_rate=self.bar.spread_rate
+
+
             )
             trade.datetime = self.datetime
 
@@ -532,9 +717,11 @@ class BacktestingEngine:
         offset: Offset,
         price: float,
         volume: float,
-        payup: int,
+        payup: float,
         interval: int,
-        lock: bool
+        lock: bool,
+        spread_rate: float,
+
     ) -> str:
         """"""
         self.algo_count += 1
@@ -550,9 +737,10 @@ class BacktestingEngine:
             volume,
             payup,
             interval,
-            lock
+            lock,
+            spread_rate
         )
-
+        # print(f"[start_algo] {algo.spread.__dict__}")
         self.algos[algoid] = algo
         self.active_algos[algoid] = algo
 
@@ -612,6 +800,235 @@ class BacktestingEngine:
     def write_algo_log(self, algo: SpreadAlgoTemplate, msg: str):
         """"""
         pass
+
+    def run_optimization(self, optimization_setting: OptimizationSetting, output=True):
+        """"""
+        # Get optimization setting and target
+        settings = optimization_setting.generate_setting()
+        target_name = optimization_setting.target_name
+
+        if not settings:
+            self.output("优化参数组合为空，请检查")
+            return
+
+        if not target_name:
+            self.output("优化目标未设置，请检查")
+            return
+
+        # Use multiprocessing pool for running backtesting with different setting
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+        results = []
+        for setting in settings:
+            result = (pool.apply_async(optimize, (
+                target_name,
+                self.strategy_class,
+                setting,
+                self.spread,
+                self.interval,
+                self.start,
+                self.rate,
+                self.slippage,
+                self.size,
+                self.pricetick,
+                self.capital,
+                self.end,
+                self.mode,
+                # self.inverse
+            )))
+            results.append(result)
+
+        pool.close()
+        pool.join()
+
+        # Sort results and output
+        result_values = [result.get() for result in results]
+        result_values.sort(reverse=True, key=lambda result: result[1])
+
+        if output:
+            for value in result_values:
+                msg = f"参数：{value[0]}, 目标：{value[1]}"
+                self.output(msg)
+
+        return result_values
+
+    def run_ga_optimization(self, optimization_setting: OptimizationSetting, population_size=100, ngen_size=30, output=True):
+        """"""
+        # Get optimization setting and target
+        settings = optimization_setting.generate_setting_ga()
+        target_name = optimization_setting.target_name
+        if not settings:
+            self.output("优化参数组合为空，请检查")
+            return
+
+        if not target_name:
+            self.output("优化目标未设置，请检查")
+            return
+
+        # Define parameter generation function
+        def generate_parameter():
+            """"""
+            return random.choice(settings)
+
+        def mutate_individual(individual, indpb):
+            """"""
+            size = len(individual)
+            paramlist = generate_parameter()
+            for i in range(size):
+                if random.random() < indpb:
+                    individual[i] = paramlist[i]
+            return individual,
+
+        # Create ga object function
+        global ga_target_name
+        global ga_strategy_class
+        global ga_setting
+        global ga_vt_symbol
+        global ga_interval
+        global ga_start
+        global ga_rate
+        global ga_slippage
+        global ga_size
+        global ga_pricetick
+        global ga_capital
+        global ga_end
+        global ga_mode
+        global ga_inverse
+
+        ga_target_name = target_name
+        ga_strategy_class = self.strategy_class
+        ga_setting = settings[0]
+        # ga_vt_symbol = self.vt_symbol
+        ga_vt_symbol = self.spread
+
+        ga_interval = self.interval
+        ga_start = self.start
+        ga_rate = self.rate
+        ga_slippage = self.slippage
+        ga_size = self.size
+        ga_pricetick = self.pricetick
+        ga_capital = self.capital
+        ga_end = self.end
+        ga_mode = self.mode
+        ga_inverse = self.inverse
+
+        # Set up genetic algorithem
+        toolbox = base.Toolbox()
+        toolbox.register("individual", tools.initIterate, creator.Individual, generate_parameter)
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        toolbox.register("mate", tools.cxTwoPoint)
+        toolbox.register("mutate", mutate_individual, indpb=1)
+        toolbox.register("evaluate", ga_optimize)
+        toolbox.register("select", tools.selNSGA2)
+
+        total_size = len(settings)
+        pop_size = population_size                      # number of individuals in each generation
+        lambda_ = pop_size                              # number of children to produce at each generation
+        mu = int(pop_size * 0.8)                        # number of individuals to select for the next generation
+
+        cxpb = 0.95         # probability that an offspring is produced by crossover
+        mutpb = 1 - cxpb    # probability that an offspring is produced by mutation
+        ngen = ngen_size    # number of generation
+
+        pop = toolbox.population(pop_size)
+        hof = tools.ParetoFront()               # end result of pareto front
+
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        np.set_printoptions(suppress=True)
+        stats.register("mean", np.mean, axis=0)
+        stats.register("std", np.std, axis=0)
+        stats.register("min", np.min, axis=0)
+        stats.register("max", np.max, axis=0)
+
+        # Multiprocessing is not supported yet.
+        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        # toolbox.register("map", pool.map)
+
+        # Run ga optimization
+        self.output(f"参数优化空间：{total_size}")
+        self.output(f"每代族群总数：{pop_size}")
+        self.output(f"优良筛选个数：{mu}")
+        self.output(f"迭代次数：{ngen}")
+        self.output(f"交叉概率：{cxpb:.0%}")
+        self.output(f"突变概率：{mutpb:.0%}")
+
+        start = time()
+
+        algorithms.eaMuPlusLambda(
+            pop,
+            toolbox,
+            mu,
+            lambda_,
+            cxpb,
+            mutpb,
+            ngen,
+            stats,
+            halloffame=hof
+        )
+
+        end = time()
+        cost = int((end - start))
+
+        self.output(f"遗传算法优化完成，耗时{cost}秒")
+
+        # Return result list
+        results = []
+
+        for parameter_values in hof:
+            s = datetime.now()
+
+            setting = dict(parameter_values)
+            target_value = ga_optimize(parameter_values)[0]
+            results.append((setting, target_value, {}))
+            e = datetime.now()
+            print(f"ga time {e-s}")
+        return results
+
+
+    def start_optimization(
+        self,
+        class_name: str,
+        vt_symbol: str,
+        interval: str,
+        start: datetime,
+        end: datetime,
+        rate: float,
+        slippage: float,
+        size: int,
+        pricetick: float,
+        capital: int,
+        inverse: bool,
+        optimization_setting: OptimizationSetting,
+        use_ga: bool
+    ):
+        if self.thread:
+            self.write_log("已有任务在运行中，请等待完成")
+            return False
+
+        self.write_log("-" * 40)
+        self.thread = Thread(
+            target=self.run_optimization,
+            args=(
+                class_name,
+                vt_symbol,
+                interval,
+                start,
+                end,
+                rate,
+                slippage,
+                size,
+                pricetick,
+                capital,
+                inverse,
+                optimization_setting,
+                use_ga
+            )
+        )
+        self.thread.start()
+
+        return True
+
+
 
 
 class DailyResult:
@@ -686,3 +1103,102 @@ class DailyResult:
         # Net pnl takes account of commission and slippage cost
         self.total_pnl = self.trading_pnl + self.holding_pnl
         self.net_pnl = self.total_pnl - self.commission - self.slippage
+
+
+
+
+def optimize(
+    target_name: str,
+    strategy_class: SpreadStrategyTemplate,
+    setting: dict,
+    # vt_symbol: str,
+    spread: SpreadData,
+    interval: Interval,
+    start: datetime,
+    rate: float,
+    slippage: float,
+    size: float,
+    pricetick: float,
+    capital: int,
+    end: datetime,
+    mode: BacktestingMode,
+    # inverse: bool
+):
+    """
+    Function for running in multiprocessing.pool
+    """
+    engine = BacktestingEngine()
+
+    engine.set_parameters(
+        # vt_symbol=vt_symbol,
+        spread=spread,
+        interval=interval,
+        start=start,
+        rate=rate,
+        slippage=slippage,
+        size=size,
+        pricetick=pricetick,
+        capital=capital,
+        end=end,
+        mode=mode,
+        # inverse=inverse
+    )
+
+    engine.add_strategy(strategy_class, setting)
+    engine.load_data()
+    engine.run_backtesting()
+    engine.calculate_result()
+    statistics = engine.calculate_statistics(output=False)
+
+    target_value = statistics[target_name]
+    return (str(setting), target_value, statistics)
+
+
+
+@lru_cache(maxsize=1000000)
+def _ga_optimize(parameter_values: tuple):
+    """"""
+    setting = dict(parameter_values)
+    result = optimize(
+        ga_target_name,
+        ga_strategy_class,
+        setting,
+        ga_vt_symbol,
+        ga_interval,
+        ga_start,
+        ga_rate,
+        ga_slippage,
+        ga_size,
+        ga_pricetick,
+        ga_capital,
+        ga_end,
+        ga_mode,
+        # ga_inverse
+    )
+    return (result[1],)
+
+
+def ga_optimize(parameter_values: list):
+    """"""
+    return _ga_optimize(tuple(parameter_values))
+
+
+
+
+
+
+
+# GA related global value
+ga_end = None
+ga_mode = None
+ga_target_name = None
+ga_strategy_class = None
+ga_setting = None
+ga_vt_symbol = None
+ga_interval = None
+ga_start = None
+ga_rate = None
+ga_slippage = None
+ga_size = None
+ga_pricetick = None
+ga_capital = None
