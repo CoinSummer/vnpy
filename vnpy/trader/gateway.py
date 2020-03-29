@@ -156,7 +156,7 @@ class BaseGateway(ABC):
         """
         log = LogData(msg=msg, gateway_name=self.gateway_name)
         self.on_log(log)
-        self.slack_send(msg, self.gateway_name)
+        # self.slack_send(msg, self.gateway_name)
 
     def slack_send(self, msg: str, gateway_name: str) -> None:
 
@@ -451,7 +451,7 @@ class SlackGateEngine(object):
             try:
                 msg = self.queue.get(block=True, timeout=1)
 
-                # url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
+                    # url = 'http://medivh.dev.csiodev.com/api/vnpy/order/status/'
                 url = SETTINGS["slack.url"]
 
                 requests.post(url, data=msg)

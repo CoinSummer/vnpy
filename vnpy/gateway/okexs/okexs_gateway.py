@@ -224,6 +224,7 @@ class OkexsRestApi(RestClient):
         self.query_contract()
         self.query_accounts()
         self.query_position()
+        # self.query_history_orders()
 
     def _new_order_id(self):
         with self.order_count_lock:
@@ -300,7 +301,7 @@ class OkexsRestApi(RestClient):
             self.add_request(
                 "GET",
                 f"/api/swap/v3/orders/{instrument}?status=0",
-                callback=self.on_query_order,
+                    callback=self.on_query_order,
             )
 
             # get part traded orders
@@ -310,6 +311,11 @@ class OkexsRestApi(RestClient):
                 callback=self.on_query_order,
             )
 
+            self.add_request(
+                "GET",
+                f"/api/swap/v3/orders/{instrument}?state=2",
+                callback=self.on_query_history_orders
+            )
     def query_position(self):
         """"""
         self.add_request(
@@ -325,6 +331,30 @@ class OkexsRestApi(RestClient):
             "/api/general/v3/time",
             callback=self.on_query_time
         )
+
+    def query_history_orders(self):
+        pass
+
+
+    def on_query_history_orders(self, data, request):
+        for order_info in data["order_info"]:
+            order = _parse_order_info(order_info, gateway_name=self.gateway_name)
+            traded_volume = float(order_info.get("filled_qty", 0))
+
+            trade = TradeData(
+                symbol=order.symbol,
+                exchange=order.exchange,
+                orderid=order.orderid,
+                tradeid=order.orderid,
+                direction=order.direction,
+                offset=order.offset,
+                price=float(order_info["price_avg"]),
+                volume=float(traded_volume),
+                time=order.time,
+                gateway_name=self.gateway_name,
+            )
+            self.gateway.on_trade(trade)
+            # self.gateway.on_order(order)
 
     def on_query_contracts(self, data, request):
         """"""

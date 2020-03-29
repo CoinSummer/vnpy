@@ -242,6 +242,7 @@ class BitmexRestApi(RestClient):
         self.start(session_number)
 
         self.gateway.write_log("REST API启动成功")
+        self.trade_history()
 
     def _new_order_id(self):
         """"""
@@ -315,58 +316,51 @@ class BitmexRestApi(RestClient):
             params=params,
             on_error=self.on_cancel_order_error,
         )
-    def trade_history(self, req: HistoryRequest):
-        if not self.check_rate_limit():
+
+    def trade_history(self):
+        # 近100条交易记录
+        params = {
+            "count": 100,
+            "reverse": "true",
+        }
+        # Get response from server
+        resp = self.request(
+            "GET",
+            "/execution/tradeHistory",
+            params=params
+        )
+        if resp.status_code // 100 != 2:
+            msg = f"获取历史订单数据失败，状态码：{resp.status_code}，信息：{resp.text}"
+            self.gateway.write_log(msg)
             return
-
-        history = []
-        count = 750
-        start_time = req.start.isoformat()
-
-        while True:
-            # Create query params
-            params = {
-                "binSize": INTERVAL_VT2BITMEX[req.interval],
-                "symbol": req.symbol,
-                "count": count,
-                "startTime": start_time
-            }
-
-            # Add end time if specified
-            if req.end:
-                params["endTime"] = req.end.isoformat()
-
-            # Get response from server
-            resp = self.request(
-                "GET",
-                "/execution/tradeHistory",
-                params=params
-            )
-            if resp.status_code // 100 != 2:
-                msg = f"获取交易历史数据失败，状态码：{resp.status_code}，信息：{resp.text}"
-                self.gateway.write_log(msg)
-                break
-            else:
-                data = resp.json()
-                if not data:
-                    msg = f"获取交易历史数据为空，开始时间：{start_time}，数量：{count}"
-                    break
-
-                for d in data:
+        else:
+            data = resp.json()
+            if not data:
+                msg = f"获取历史订单数据为空"
+                return
+            for d in data:
+                if d['execType'] == "Trade":
                     dt = datetime.strptime(
                         d["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
-                    bar = BarData(
-                        symbol=req.symbol,
-                        exchange=req.exchange,
-                        datetime=dt,
-                        interval=req.interval,
-                        volume=d["volume"],
-                        open_price=d["open"],
-                        high_price=d["high"],
-                        low_price=d["low"],
-                        close_price=d["close"],
-                        gateway_name=self.gateway_name
+                    tradeid = d["execID"]
+
+                    if d["clOrdID"]:
+                        orderid = d["clOrdID"]
+                    else:
+                        orderid = d["orderID"]
+
+                    trade = TradeData(
+                        symbol=d["symbol"],
+                        exchange=Exchange.BITMEX,
+                        orderid=orderid,
+                        tradeid=tradeid,
+                        direction=DIRECTION_BITMEX2VT[d["side"]],
+                        price=d["lastPx"],
+                        volume=d["lastQty"],
+                        time=d["timestamp"],
+                        gateway_name=self.gateway_name,
                     )
+                    self.gateway.on_trade(trade)
 
     def query_history(self, req: HistoryRequest):
         """"""
