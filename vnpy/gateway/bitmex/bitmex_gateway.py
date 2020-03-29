@@ -732,7 +732,7 @@ class BitmexWebsocketApi(WebsocketClient):
             orderid = d["clOrdID"]
         else:
             orderid = d["orderID"]
-
+    
         trade = TradeData(
             symbol=d["symbol"],
             exchange=Exchange.BITMEX,
