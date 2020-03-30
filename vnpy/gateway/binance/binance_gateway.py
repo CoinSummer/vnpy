@@ -648,10 +648,11 @@ class BinanceTradeWebsocketApi(WebsocketClient):
 
     def on_order(self, packet: dict):
         """"""
+        print(packet)
         dt = datetime.fromtimestamp(packet["O"] / 1000)
         time = dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        if packet["C"] == "null":
+        if packet["C"] == "":
             orderid = packet["c"]
         else:
             orderid = packet["C"]
