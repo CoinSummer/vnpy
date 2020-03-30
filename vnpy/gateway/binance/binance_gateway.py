@@ -648,7 +648,6 @@ class BinanceTradeWebsocketApi(WebsocketClient):
 
     def on_order(self, packet: dict):
         """"""
-        print(packet)
         dt = datetime.fromtimestamp(packet["O"] / 1000)
         time = dt.strftime("%Y-%m-%d %H:%M:%S")
 
