@@ -45,7 +45,7 @@ from vnpy.gateway.uft import UftGateway
 # from vnpy.app.risk_manager import RiskManagerApp
 # from vnpy.app.script_trader import ScriptTraderApp
 # from vnpy.app.rpc_service import RpcServiceApp
-# from vnpy.app.spread_trading import SpreadTradingApp
+from vnpy.app.spread_trading import SpreadTradingApp
 # from vnpy.app.portfolio_manager import PortfolioManagerApp
 # from vnpy.app.option_master import OptionMasterApp
 # from vnpy.app.chart_wizard import ChartWizardApp
