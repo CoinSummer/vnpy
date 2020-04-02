@@ -110,6 +110,23 @@ class SpreadAlgoTemplate:
         """"""
         finished = True
 
+        volume_changes = []
+        for vt_symbol, leg in self.spread.legs.items():
+            size = self.spread.get_leg_size(vt_symbol)
+
+            if self.spread.is_inverse(vt_symbol):
+                volume_change = calculate_inverse_volume(
+                    leg.min_volume,
+                    leg.last_price,
+                    size
+                )
+            else:
+                volume_change = leg.min_volume
+
+            volume_changes.append(volume_change)
+
+        min_change = max(volume_changes)
+
         for vt_symbol, leg in self.spread.legs.items():
             leg_traded = self.leg_traded[vt_symbol]
 
@@ -117,23 +134,13 @@ class SpreadAlgoTemplate:
             size = self.spread.get_leg_size(vt_symbol)
 
             if self.spread.is_inverse(vt_symbol):
-                leg_target = calculate_inverse_volume(
-                    self.target * trading_multiplier,
-                    leg.last_price,
-                    size
-                )
-                min_change = calculate_inverse_volume(
-                    leg.min_volume,
-                    leg.last_price,
-                    size
-                )
+                leg_target = self.target * trading_multiplier
             else:
                 leg_target = self.target * trading_multiplier
-                min_change = leg.min_volume
 
             leg_left = leg_target - leg_traded
-            print("leg_left:", leg_left)
-            print("leg_target:", leg_target)
+            print(vt_symbol, leg_target, leg_traded)
+            print(leg_left, min_change)
 
             if abs(leg_left) >= min_change:
                 finished = False
@@ -244,6 +251,7 @@ class SpreadAlgoTemplate:
         volume = round_to(volume, leg.min_volume)
 
         # If new order volume is 0, then check if algo finished
+        print("sending_order", vt_symbol, volume)
         if not volume:
             finished = self.check_algo_finished()
 
@@ -318,7 +326,7 @@ class SpreadAlgoTemplate:
 
         self.traded_volume = abs(self.traded)
 
-        if self.traded == self.target:
+        if self.traded >= self.target:
             self.status = Status.ALLTRADED
         elif not self.traded:
             self.status = Status.NOTTRADED
